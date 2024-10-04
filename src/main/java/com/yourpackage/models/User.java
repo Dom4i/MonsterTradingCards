@@ -1,8 +1,7 @@
 package com.yourpackage.models;
 
-
 import com.yourpackage.database.Database;
-
+import com.fasterxml.jackson.databind.JsonNode;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +10,9 @@ public class User {
     private String username;
     private String password;
     private int coins;
+    private String name;
+    private String bio;
+    private String image;
     private List<Card> cardStack; // Stack von Karten gesamt
     private List<Card> deck; // Deck mit den 4 Karten für den Kampf
 
@@ -23,10 +25,20 @@ public class User {
         this.deck = new ArrayList<>();
     }
 
+    // Überladener Konstruktor für vollständige Benutzerdaten
+    public User(String username, String password, String name, String bio, String image, int coins) {
+        this.username = username;
+        this.password = password;
+        this.name = name;
+        this.bio = bio;
+        this.image = image;
+        this.coins = coins;
+        this.cardStack = new ArrayList<>();
+        this.deck = new ArrayList<>();
+    }
 
     public boolean createUserInDatabase() {
         try (Connection conn = Database.connect()) {
-
             // Überprüfen, ob der Benutzer bereits existiert
             String checkSql = "SELECT COUNT(*) FROM users WHERE username = ?";
             try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
@@ -46,7 +58,6 @@ public class User {
                 insertStmt.executeUpdate();
                 return true; // Benutzer erfolgreich erstellt
             }
-
         } catch (SQLException e) {
             e.printStackTrace();
             return false; // Fehler bei der Datenbankoperation
@@ -69,7 +80,6 @@ public class User {
         }
     }
 
-
     // Methode zum Abrufen eines Benutzers
     public void getUser(String username) {
         String sql = "SELECT * FROM users WHERE username = ?";
@@ -80,7 +90,9 @@ public class User {
             while (rs.next()) {
                 this.username = rs.getString("username");
                 this.coins = rs.getInt("coins");
-                // Hier kannst du auch den Kartenstack und das Deck aus der Datenbank abrufen
+                this.name = rs.getString("name"); // Angenommen, es gibt ein "name"-Feld in der DB
+                this.bio = rs.getString("bio"); // Angenommen, es gibt ein "bio"-Feld in der DB
+                this.image = rs.getString("image"); // Angenommen, es gibt ein "image"-Feld in der DB
                 System.out.println("ID: " + rs.getInt("id"));
                 System.out.println("Username: " + this.username);
                 System.out.println("Coins: " + this.coins);
@@ -89,6 +101,59 @@ public class User {
             System.out.println(e.getMessage());
         }
     }
+
+    // Statische Methode, um einen Benutzer aus der Datenbank abzurufen
+    public static User getUserFromDatabase(String username) {
+        String sql = "SELECT * FROM users WHERE username = ?";
+        try (Connection conn = Database.connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                String password = rs.getString("password");
+                String name = rs.getString("name");
+                String bio = rs.getString("bio");
+                String image = rs.getString("image");
+                int coins = rs.getInt("coins");
+
+                // Erstelle ein neues User-Objekt und gebe es zurück
+                return new User(username, password, name, bio, image, coins);
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        return null; // Benutzer wurde nicht gefunden
+    }
+
+    public void updateData(JsonNode jsonNode) {
+        if (jsonNode.has("Name")) {
+            this.name = jsonNode.get("Name").asText();
+        }
+        if (jsonNode.has("Bio")) {
+            this.bio = jsonNode.get("Bio").asText();
+        }
+        if (jsonNode.has("Image")) {
+            this.image = jsonNode.get("Image").asText();
+        }
+
+        // Implementiere die Logik, um die Änderungen in der Datenbank zu speichern
+        try (Connection conn = Database.connect()) {
+            String sql = "UPDATE users SET name = ?, bio = ?, image = ? WHERE username = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, this.name);
+                pstmt.setString(2, this.bio);
+                pstmt.setString(3, this.image);
+                pstmt.setString(4, this.username);
+                pstmt.executeUpdate(); // Update ausführen
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    public String toJson() {
+        return "{\"username\":\"" + username + "\", \"name\":\"" + name + "\", \"bio\":\"" + bio + "\", \"image\":\"" + image + "\"}";
+    }
+
 
     // Methode zum Hinzufügen einer Karte zum Kartenstack
     public void addCardToStack(Card card) {

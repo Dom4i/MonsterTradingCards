@@ -18,6 +18,9 @@ public class RequestHandler {
             case "POST":
                 response = handlePostRequest(path, clientSocket, in);
                 break;
+            case "PUT":
+                response = handlePutRequest(path, clientSocket, in);
+                break;
             default:
                 response = "HTTP/1.1 405 Method Not Allowed";
                 break;
@@ -26,12 +29,23 @@ public class RequestHandler {
     }
 
     private static String handleGetRequest(String path) {
-        if (path.equals("/users")) {
-            return "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"message\":\"List of users\"}";
-        } else {
-            return "HTTP/1.1 404 Not Found";
+        if (path.startsWith("/users/")) {
+            String username = path.split("/")[2]; // Benutzername aus dem Pfad extrahieren
+
+            return getUserData(username);
         }
+        return "HTTP/1.1 404 Not Found";
     }
+
+    private static String getUserData(String username) {
+        // Hier sollte die Logik stehen, um Benutzerdaten aus der Datenbank zu holen
+        User user = User.getUserFromDatabase(username); // Beispielmethode
+        if (user != null) {
+            return "HTTP/1.1 200\r\n" + user.toJson();
+        }
+        return "HTTP/1.1 404 Not Found";
+    }
+
     public static String handlePostRequest(String path, Socket clientSocket, BufferedReader in) {
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -52,6 +66,40 @@ public class RequestHandler {
             return "HTTP/1.1 400 Bad Request\n\nInvalid JSON format.";
         }
     }
+
+    public static String handlePutRequest(String path, Socket clientSocket, BufferedReader in) {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        try {
+            String[] requestParts = readRequest(in);
+            String body = requestParts[1]; // Body ist das zweite Element
+            JsonNode jsonNode = objectMapper.readTree(body);
+
+            // Überprüfen, ob der Pfad mit "/users/" beginnt
+            if (path.startsWith("/users/")) {
+                String username = path.split("/")[2]; // Extrahiere den Benutzernamen aus dem Pfad
+
+                // Hole den Benutzer aus der Datenbank
+                User user = User.getUserFromDatabase(username); // Holt den Benutzer basierend auf dem Benutzernamen
+
+                if (user != null) {
+                    // Aktualisiere die Benutzerdaten
+                    user.updateData(jsonNode); // Aktualisiert die Benutzerinformationen
+
+                    // Sende die aktualisierten Daten als JSON zurück
+                    return "HTTP/1.1 204";
+                } else {
+                    return "HTTP/1.1 404 Not Found\n\nUser not found."; // Benutzer wurde nicht gefunden
+                }
+            } else {
+                return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found."; // Ungültiger Pfad
+            }
+        } catch (IOException e) {
+            return "HTTP/1.1 400 Bad Request\n\nInvalid JSON format."; // Fehler beim Lesen des JSON
+        }
+    }
+
+
 
     // Methode zur Benutzerregistrierung
     private static String handleUserCreation(JsonNode jsonNode) {
