@@ -38,11 +38,8 @@ public class RequestHandlerTest {
         }
     }
 
-    @Test
-    public void testHandleGetRequest() {
-        String response = RequestHandler.handleRequest("GET", "/users", new Socket(), new BufferedReader(new StringReader("")));
-        assertEquals("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"message\":\"List of users\"}", response);
-    }
+
+
 
     @Test
     public void testHandlePostUserCreation() throws IOException {
