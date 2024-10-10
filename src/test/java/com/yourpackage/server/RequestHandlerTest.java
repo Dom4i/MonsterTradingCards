@@ -60,4 +60,16 @@ public class RequestHandlerTest {
         assertEquals("HTTP/1.1 200 OK\n\nToken: testUser-mtcgToken", response);
     }
 
+    @Test
+    public void testHandlePutUserUpdate() throws IOException {
+
+
+        // Jetzt aktualisiere die Benutzerdaten
+        String jsonInputUpdate = "{\"Name\":\"Updated Name\",\"Bio\":\"Updated bio.\",\"Image\":\"updated_image_url.jpg\"}";
+        BufferedReader inUpdate = new BufferedReader(new StringReader("PUT /users/testUser HTTP/1.1\r\nContent-Length: " + jsonInputUpdate.length() + "\r\n\r\n" + jsonInputUpdate));
+        String response = RequestHandler.handlePutRequest("/users/testUser", new Socket(), inUpdate);
+
+        // Prüfe, ob die Antwort den gewünschten Status zurückgibt
+        assertEquals("HTTP/1.1 204", response); // Erwartet, dass das Update erfolgreich ist
+    }
 }

@@ -1,39 +1,31 @@
 package com.yourpackage.models;
 
-public class Card {
-    private String id;          // Eindeutige ID für die Karte
-    private String name;        // Name der Karte
-    private double damage;      // Schaden, den die Karte verursacht
-    private elementType elementType; // Elementtyp (z.B. Wasser, Feuer, etc.)
-    private CardType cardType;  // Kartentyp (Monster oder Zauber)
+import java.util.UUID;
 
-    // Enum für den Kartentyp
-    public enum CardType {
-        MONSTER,
-        SPELL
-    }
-    public enum elementType {
-        WATER,
-        FIRE,
-        NORMAL
-    }
+enum elementType {
+    FIRE,
+    WATER,
+    NORMAL
+}
+public abstract class Card {
+    private UUID id;  // UUID, die von der Datenbank generiert wird
+    private String name;
+    private double damage;
+    private elementType elementType;
+
+
 
     // Konstruktor
-    public Card(String id, String name, double damage, elementType elementType, CardType cardType) {
-        this.id = id;
+    public Card(String name, double damage, elementType elementType) {
         this.name = name;
         this.damage = damage;
         this.elementType = elementType;
-        this.cardType = cardType;
+        // id wird nicht gesetzt, da sie von der Datenbank generiert wird
     }
 
     // Getter und Setter
-    public String getId() {
+    public UUID getId() {
         return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
     }
 
     public String getName() {
@@ -60,23 +52,13 @@ public class Card {
         this.elementType = elementType;
     }
 
-    public CardType getCardType() {
-        return cardType;
-    }
-
-    public void setCardType(CardType cardType) {
-        this.cardType = cardType;
-    }
-
-    // Überschreiben der toString-Methode für eine bessere Ausgabe
     @Override
     public String toString() {
         return "Card{" +
-                "id='" + id + '\'' +
+                "id=" + id +
                 ", name='" + name + '\'' +
                 ", damage=" + damage +
-                ", elementType='" + elementType + '\'' +
-                ", cardType=" + cardType +
+                ", elementType=" + elementType +
                 '}';
     }
 }

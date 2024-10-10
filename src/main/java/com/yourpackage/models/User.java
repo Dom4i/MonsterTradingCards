@@ -5,8 +5,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID; //für UUID
+
 
 public class User {
+    private UUID id;  // UUID für die ID, die aus der Datenbank kommt
     private String username;
     private String password;
     private int coins;
@@ -17,7 +20,7 @@ public class User {
     private List<Card> deck; // Deck mit den 4 Karten für den Kampf
 
     // Konstruktor
-    public User(String username, String password, int coins) {
+    public User( String username, String password, int coins) {
         this.username = username;
         this.password = password;
         this.coins = coins;
@@ -26,7 +29,8 @@ public class User {
     }
 
     // Überladener Konstruktor für vollständige Benutzerdaten
-    public User(String username, String password, String name, String bio, String image, int coins) {
+    public User(UUID id, String username, String password, String name, String bio, String image, int coins) {
+        this.id = id;
         this.username = username;
         this.password = password;
         this.name = name;
@@ -49,13 +53,13 @@ public class User {
                 }
             }
 
-            // SQL-Befehl zur Benutzererstellung
+            // SQL-Befehl zur Benutzererstellung, ID wird automatisch generiert
             String sql = "INSERT INTO users (username, password, coins) VALUES (?, ?, ?)";
             try (PreparedStatement insertStmt = conn.prepareStatement(sql)) {
                 insertStmt.setString(1, this.username);
                 insertStmt.setString(2, this.password);
                 insertStmt.setInt(3, this.coins);
-                insertStmt.executeUpdate();
+                insertStmt.executeUpdate(); // ID wird automatisch generiert
                 return true; // Benutzer erfolgreich erstellt
             }
         } catch (SQLException e) {
@@ -63,6 +67,7 @@ public class User {
             return false; // Fehler bei der Datenbankoperation
         }
     }
+
 
     // Login-Methode
     public boolean loginUser() {
@@ -110,6 +115,7 @@ public class User {
             pstmt.setString(1, username);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
+                UUID id = (UUID) rs.getObject("id"); // UUID von der Datenbank abrufen
                 String password = rs.getString("password");
                 String name = rs.getString("name");
                 String bio = rs.getString("bio");
@@ -117,13 +123,15 @@ public class User {
                 int coins = rs.getInt("coins");
 
                 // Erstelle ein neues User-Objekt und gebe es zurück
-                return new User(username, password, name, bio, image, coins);
+                User user = new User(id, username, password, name, bio, image, coins);
+                return user;
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
         return null; // Benutzer wurde nicht gefunden
     }
+
 
     public void updateData(JsonNode jsonNode) {
         if (jsonNode.has("Name")) {
@@ -177,9 +185,12 @@ public class User {
     // Weitere Methoden (updateUserCoins, deleteUser) ...
 
     // Getter und Setter für die Eigenschaften
-    public String getUsername() {
-        return username;
-    }
+    // Getter und Setter für die ID
+    public UUID getId() {return id;}
+
+    public void setId(UUID id) {this.id = id;}
+
+    public String getUsername() {return username;}
 
     public void setUsername(String username) {
         this.username = username;
