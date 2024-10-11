@@ -1,30 +1,55 @@
 package com.yourpackage.models;
+import com.yourpackage.database.Database;
 
+import java.sql.PreparedStatement;
+import java.sql.*;
 import java.util.UUID;
 
-enum elementType {
-    FIRE,
-    WATER,
-    NORMAL
-}
+
 public abstract class Card {
-    private UUID id;  // UUID, die von der Datenbank generiert wird
+    private String id;
     private String name;
     private double damage;
-    private elementType elementType;
+    private String elementType;
+    private String cardType;
 
 
 
     // Konstruktor
-    public Card(String name, double damage, elementType elementType) {
+    public Card(String id, String name, double damage, String elementType, String cardType) {
+        this.id = id;
         this.name = name;
         this.damage = damage;
         this.elementType = elementType;
+        this.cardType = cardType;
         // id wird nicht gesetzt, da sie von der Datenbank generiert wird
     }
 
+    // Methode zum Hinzufügen einer Card in die Datenbank
+    public boolean createCard(UUID packageId) {
+        try (Connection conn = Database.connect()) {
+            String insertCardSql = "INSERT INTO cards (card_id, name, damage, element_type, card_type, package_id) VALUES (?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(insertCardSql)) {
+                stmt.setString(1, id);
+                stmt.setString(2, name);
+                stmt.setDouble(3, damage);
+                stmt.setString(4, elementType);
+                stmt.setString(5, cardType);
+                stmt.setObject(6, packageId); // setObject für UUID verwenden
+                stmt.executeUpdate();
+                return true; // Karte erfolgreich erstellt
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false; // Fehler bei der Datenbankoperation
+        }
+    }
+
+
+
+
     // Getter und Setter
-    public UUID getId() {
+    public String getId() {
         return id;
     }
 
@@ -44,11 +69,11 @@ public abstract class Card {
         this.damage = damage;
     }
 
-    public elementType getElementType() {
+    public String getElementType() {
         return elementType;
     }
 
-    public void setElementType(elementType elementType) {
+    public void setElementType(String elementType) {
         this.elementType = elementType;
     }
 

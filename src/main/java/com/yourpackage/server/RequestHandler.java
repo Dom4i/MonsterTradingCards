@@ -1,12 +1,21 @@
 package com.yourpackage.server;
+import com.yourpackage.models.MonsterCard;
+import com.yourpackage.models.SpellCard;
 import com.yourpackage.models.User;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yourpackage.models.Card;
+import com.yourpackage.models.Package;
+
 
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
 public class RequestHandler {
 
     public static String handleRequest(String method, String path, Socket clientSocket, BufferedReader in) {
@@ -59,6 +68,8 @@ public class RequestHandler {
                 return handleUserCreation(jsonNode);
             } else if (path.equals("/sessions")) {
                 return handleUserLogin(jsonNode);
+            } else if (path.equals("/packages")) {
+                return handleCreatePackage(jsonNode);
             } else {
                 return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found.";
             }
@@ -140,6 +151,91 @@ public class RequestHandler {
         } else {
             return "HTTP/1.1 400 Bad Request\n\nMissing Username or Password.";
         }
+    }
+    public static String handleCreatePackage(JsonNode jsonNode) {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        try {
+            // Überprüfen, ob die Anfrage aus genau 5 Karten besteht
+            if (!jsonNode.isArray() || jsonNode.size() != 5) {
+                return "HTTP/1.1 400 Bad Request\n\nA package must contain exactly 5 cards.";
+            }
+
+            // Admin-Authentifizierung prüfen
+            String authorizationHeader = "Bearer admin-mtcgToken"; // Platzhalter
+            if (!authorizationHeader.equals("Bearer admin-mtcgToken")) {
+                return "HTTP/1.1 403 Forbidden\n\nYou are not authorized to create packages.";
+            }
+
+            // Generiere eine Package-ID
+            UUID packageId = UUID.randomUUID();
+
+            // Füge das Paket in die Datenbank ein
+            Package cardPackage = new Package(packageId);
+            boolean packageAdded = cardPackage.addPackageToDatabase();
+            if (!packageAdded) {
+                return "HTTP/1.1 409 Conflict - Package already exists.";
+            }
+
+            List<Card> packageCards = new ArrayList<>();
+
+            // Iteriere über die Karten und füge jede zu ihrer entsprechenden Tabelle hinzu
+            for (JsonNode cardNode : jsonNode) {
+                if (cardNode.has("Id") && cardNode.has("Name") && cardNode.has("Damage")) {
+                    String cardId = cardNode.get("Id").asText();
+                    String cardName = cardNode.get("Name").asText();
+                    double cardDamage = cardNode.get("Damage").asDouble();
+
+                    // Bestimme den Elementtyp basierend auf dem Namen oder einer anderen Eigenschaft
+                    String cardElement = determineElementType(cardName);
+                    Card card;
+
+                    // Bestimme, ob es sich um eine MonsterCard oder SpellCard handelt
+                    if (isMonsterCard(cardName)) {
+                        // MonsterCard erstellen
+                        String cardType = "MONSTER";
+                        card = new MonsterCard(cardId, cardName, cardDamage, cardElement, cardType);
+                    } else {
+                        // SpellCard erstellen
+                        String cardType = "SPELL";
+                        card = new SpellCard(cardId, cardName, cardDamage, cardElement, cardType);
+                    }
+
+                    // Karte in der Datenbank speichern und zur Liste hinzufügen
+                    boolean cardCreated = card.createCard(packageId); // Übergabe der packageId an die Karte
+                    if (!cardCreated) {
+                        return "HTTP/1.1 400 Bad Request\n\nFailed to create one or more cards.";
+                    }
+                    packageCards.add(card);
+                } else {
+                    return "HTTP/1.1 400 Bad Request\n\nEach card must contain Id, Name, and Damage.";
+                }
+            }
+
+            return "HTTP/1.1 201 Package Created";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "HTTP/1.1 500 Internal Server Error\n\nAn error occurred while creating the package.";
+        }
+    }
+
+
+
+
+    // Helper Funktionen
+    private static String determineElementType(String cardName) {
+        if (cardName.toLowerCase().contains("fire") || cardName.toLowerCase().contains("dragon")) {
+            return "FIRE";
+        } else if (cardName.toLowerCase().contains("water")) {
+            return "WATER";
+        } else {
+            return "NORMAL";
+        }
+    }
+
+    private static boolean isMonsterCard(String cardName) {
+        // Logik zur Bestimmung, ob die Karte eine MonsterCard ist
+        return cardName.toLowerCase().contains("goblin") || cardName.toLowerCase().contains("dragon") || cardName.toLowerCase().contains("ork");
     }
 
 
