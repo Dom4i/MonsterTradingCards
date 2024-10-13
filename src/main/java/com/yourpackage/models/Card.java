@@ -22,7 +22,6 @@ public abstract class Card {
         this.damage = damage;
         this.elementType = elementType;
         this.cardType = cardType;
-        // id wird nicht gesetzt, da sie von der Datenbank generiert wird
     }
 
     // Methode zum Hinzufügen einer Card in die Datenbank
