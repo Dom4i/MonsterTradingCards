@@ -1,10 +1,7 @@
 package com.yourpackage.models;
 import com.yourpackage.database.Database;
-import java.sql.*;
 import java.util.UUID; //für UUID
 
-
-import java.io.IOException; // Importiere IOException
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;

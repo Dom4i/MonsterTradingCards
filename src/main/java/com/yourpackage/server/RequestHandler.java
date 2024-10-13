@@ -1,10 +1,7 @@
 package com.yourpackage.server;
-import com.yourpackage.models.MonsterCard;
-import com.yourpackage.models.SpellCard;
-import com.yourpackage.models.User;
+import com.yourpackage.models.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yourpackage.models.Card;
 import com.yourpackage.models.Package;
 
 import java.io.BufferedReader;
@@ -45,10 +42,11 @@ public class RequestHandler {
     }
 
     private static String getUserData(String username) {
-        // Hier sollte die Logik stehen, um Benutzerdaten aus der Datenbank zu holen
-        User user = User.getUserFromDatabase(username); // Beispielmethode
+        UserService userService = new UserService();
+        User user = userService.getUserFromDatabase(username); // Beispielmethode
+
         if (user != null) {
-            return "HTTP/1.1 200\r\n" + user.toJson();
+            return "HTTP/1.1 200\r\n" + userService.toJson(user);
         }
         return "HTTP/1.1 404 Not Found";
     }
@@ -58,8 +56,10 @@ public class RequestHandler {
 
         try {
             String[] requestParts = readRequest(in);
+            String header = requestParts[0];
             String body = requestParts[1]; // Body ist das zweite Element
             JsonNode jsonNode = objectMapper.readTree(body);
+            String authorization = getAuthorizationHeader(header);
 
             // Überprüfen, ob die nötigen Felder vorhanden sind
             if (path.equals("/users")) {
@@ -67,7 +67,7 @@ public class RequestHandler {
             } else if (path.equals("/sessions")) {
                 return handleUserLogin(jsonNode);
             } else if (path.equals("/packages")) {
-                return handleCreatePackage(jsonNode);
+                return handleCreatePackage(jsonNode, authorization);
             } else {
                 return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found.";
             }
@@ -84,16 +84,17 @@ public class RequestHandler {
             String body = requestParts[1]; // Body ist das zweite Element
             JsonNode jsonNode = objectMapper.readTree(body);
 
+
             // Überprüfen, ob der Pfad mit "/users/" beginnt
             if (path.startsWith("/users/")) {
                 String username = path.split("/")[2]; // Extrahiere den Benutzernamen aus dem Pfad
-
+                UserService userService = new UserService();
                 // Hole den Benutzer aus der Datenbank
-                User user = User.getUserFromDatabase(username); // Holt den Benutzer basierend auf dem Benutzernamen
+                User user = userService.getUserFromDatabase(username); // Holt den Benutzer basierend auf dem Benutzernamen
 
                 if (user != null) {
                     // Aktualisiere die Benutzerdaten
-                    user.updateData(jsonNode); // Aktualisiert die Benutzerinformationen
+                    userService.updateUserData(user, jsonNode); // Aktualisiert die Benutzerinformationen
 
                     // Sende die aktualisierten Daten als JSON zurück
                     return "HTTP/1.1 204";
@@ -115,10 +116,11 @@ public class RequestHandler {
         if (jsonNode.has("Username") && jsonNode.has("Password")) {
             String username = jsonNode.get("Username").asText();
             String password = jsonNode.get("Password").asText();
-            User newUser = new User(username, password, 20);
+            User newUser = new User(username, password, 20, 100);
+            UserService userService = new UserService();
 
             // Verwende die modifizierte Methode, um den Benutzer zu erstellen
-            boolean success = newUser.createUserInDatabase();
+            boolean success = userService.createUserInDatabase(newUser);
 
             if (success) {
                 return "HTTP/1.1 201";
@@ -135,10 +137,10 @@ public class RequestHandler {
         if (jsonNode.has("Username") && jsonNode.has("Password")) {
             String username = jsonNode.get("Username").asText();
             String password = jsonNode.get("Password").asText();
-            User user = new User(username, password, 0); // Coins sind hier irrelevant
-
+            User user = new User(username, password);
+            UserService userService = new UserService();
             // Versuche, den Benutzer einzuloggen
-            boolean success = user.loginUser();
+            boolean success = userService.loginUser(user);
 
             if (success) {
                 String token = username + "-mtcgToken"; // Generiere den Token
@@ -150,8 +152,7 @@ public class RequestHandler {
             return "HTTP/1.1 400 Bad Request\n\nMissing Username or Password.";
         }
     }
-    public static String handleCreatePackage(JsonNode jsonNode) {
-        ObjectMapper objectMapper = new ObjectMapper();
+    public static String handleCreatePackage(JsonNode jsonNode, String authorization) {
 
         try {
             // Überprüfen, ob die Anfrage aus genau 5 Karten besteht
@@ -160,8 +161,9 @@ public class RequestHandler {
             }
 
             // Admin-Authentifizierung prüfen
-            String authorizationHeader = "Bearer admin-mtcgToken"; // Platzhalter
-            if (!authorizationHeader.equals("Bearer admin-mtcgToken")) {
+
+
+            if (!authorization.equals("Bearer admin-mtcgToken")) {
                 return "HTTP/1.1 403 Forbidden\n\nYou are not authorized to create packages.";
             }
 
@@ -202,7 +204,7 @@ public class RequestHandler {
                     // Karte in der Datenbank speichern und zur Liste hinzufügen
                     boolean cardCreated = card.createCard(packageId); // Übergabe der packageId an die Karte
                     if (!cardCreated) {
-                        return "HTTP/1.1 400 Bad Request\n\nFailed to create one or more cards.";
+                        return "HTTP/1.1 400 Bad Request\n\nCard already exists.";
                     }
                     packageCards.add(card);
                 } else {
@@ -235,6 +237,17 @@ public class RequestHandler {
         // Logik zur Bestimmung, ob die Karte eine MonsterCard ist
         return cardName.toLowerCase().contains("goblin") || cardName.toLowerCase().contains("dragon") || cardName.toLowerCase().contains("ork");
     }
+
+    private static String getAuthorizationHeader(String header) {
+        String[] lines = header.split("\n");
+        for (String line : lines) {
+            if (line.startsWith("Authorization: ")) {
+                return line.substring("Authorization: ".length()).trim();
+            }
+        }
+        return null; // Kein Authorization-Header gefunden
+    }
+
 
 
 

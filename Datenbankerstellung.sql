@@ -11,6 +11,8 @@ CREATE TABLE users (
                        username VARCHAR(255) UNIQUE NOT NULL,
                        password VARCHAR(255) NOT NULL,
                        coins integer NOT NULL,
+                       score integer NOT NULL,
+                       token VARCHAR(255),
                        name VARCHAR(255),
                        bio TEXT,
                        image TEXT
