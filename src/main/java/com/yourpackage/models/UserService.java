@@ -2,11 +2,14 @@ package com.yourpackage.models;
 
 import com.yourpackage.database.Database;
 import com.fasterxml.jackson.databind.JsonNode;
+
 import java.util.UUID; // Importiere für UUID
 import java.sql.*;
 
 
 public class UserService {
+
+
 
     public boolean createUserInDatabase(User user) {
         try (Connection conn = Database.connect()) {
@@ -66,7 +69,7 @@ public class UserService {
 
 
     // Statische Methode, um einen Benutzer aus der Datenbank abzurufen
-    public static User getUserFromDatabase(String username) {
+    public User getUserFromDatabase(String username) {
         String sql = "SELECT * FROM users WHERE username = ?";
         try (Connection conn = Database.connect();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {

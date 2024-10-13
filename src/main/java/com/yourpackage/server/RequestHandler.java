@@ -13,7 +13,13 @@ import java.util.UUID;
 
 public class RequestHandler {
 
-    public static String handleRequest(String method, String path, Socket clientSocket, BufferedReader in) {
+    private final UserService userService;
+
+    public RequestHandler(UserService userService) {
+        this.userService = new UserService(); // Einmalige Instanzierung
+    }
+
+    public String handleRequest(String method, String path, Socket clientSocket, BufferedReader in) {
         String response;
         switch (method) {
             case "GET":
@@ -32,7 +38,7 @@ public class RequestHandler {
         return response;
     }
 
-    private static String handleGetRequest(String path) {
+    private  String handleGetRequest(String path) {
         if (path.startsWith("/users/")) {
             String username = path.split("/")[2]; // Benutzername aus dem Pfad extrahieren
 
@@ -41,8 +47,8 @@ public class RequestHandler {
         return "HTTP/1.1 404 Not Found";
     }
 
-    private static String getUserData(String username) {
-        UserService userService = new UserService();
+    private String getUserData(String username) {
+
         User user = userService.getUserFromDatabase(username); // Beispielmethode
 
         if (user != null) {
@@ -51,7 +57,7 @@ public class RequestHandler {
         return "HTTP/1.1 404 Not Found";
     }
 
-    public static String handlePostRequest(String path, Socket clientSocket, BufferedReader in) {
+    public  String handlePostRequest(String path, Socket clientSocket, BufferedReader in) {
         ObjectMapper objectMapper = new ObjectMapper();
 
         try {
@@ -76,7 +82,7 @@ public class RequestHandler {
         }
     }
 
-    public static String handlePutRequest(String path, Socket clientSocket, BufferedReader in) {
+    public  String handlePutRequest(String path, Socket clientSocket, BufferedReader in) {
         ObjectMapper objectMapper = new ObjectMapper();
 
         try {
@@ -112,7 +118,7 @@ public class RequestHandler {
 
 
     // Methode zur Benutzerregistrierung
-    private static String handleUserCreation(JsonNode jsonNode) {
+    private  String handleUserCreation(JsonNode jsonNode) {
         if (jsonNode.has("Username") && jsonNode.has("Password")) {
             String username = jsonNode.get("Username").asText();
             String password = jsonNode.get("Password").asText();
@@ -133,7 +139,7 @@ public class RequestHandler {
     }
 
     // Methode zum Benutzereinloggen
-    private static String handleUserLogin(JsonNode jsonNode) {
+    private  String handleUserLogin(JsonNode jsonNode) {
         if (jsonNode.has("Username") && jsonNode.has("Password")) {
             String username = jsonNode.get("Username").asText();
             String password = jsonNode.get("Password").asText();
@@ -152,7 +158,7 @@ public class RequestHandler {
             return "HTTP/1.1 400 Bad Request\n\nMissing Username or Password.";
         }
     }
-    public static String handleCreatePackage(JsonNode jsonNode, String authorization) {
+    public  String handleCreatePackage(JsonNode jsonNode, String authorization) {
 
         try {
             // Überprüfen, ob die Anfrage aus genau 5 Karten besteht
@@ -223,7 +229,7 @@ public class RequestHandler {
 
 
     // Helper Funktionen
-    private static String determineElementType(String cardName) {
+    private String determineElementType(String cardName) {
         if (cardName.toLowerCase().contains("fire") || cardName.toLowerCase().contains("dragon")) {
             return "FIRE";
         } else if (cardName.toLowerCase().contains("water")) {
@@ -233,12 +239,12 @@ public class RequestHandler {
         }
     }
 
-    private static boolean isMonsterCard(String cardName) {
+    private boolean isMonsterCard(String cardName) {
         // Logik zur Bestimmung, ob die Karte eine MonsterCard ist
         return cardName.toLowerCase().contains("goblin") || cardName.toLowerCase().contains("dragon") || cardName.toLowerCase().contains("ork");
     }
 
-    private static String getAuthorizationHeader(String header) {
+    private String getAuthorizationHeader(String header) {
         String[] lines = header.split("\n");
         for (String line : lines) {
             if (line.startsWith("Authorization: ")) {
@@ -251,7 +257,7 @@ public class RequestHandler {
 
 
 
-    private static String[] readRequest(BufferedReader in) throws IOException {
+    private String[] readRequest(BufferedReader in) throws IOException {
         StringBuilder requestHeaders = new StringBuilder();
         StringBuilder requestBody = new StringBuilder();
 

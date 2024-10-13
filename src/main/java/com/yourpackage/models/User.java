@@ -1,8 +1,5 @@
 package com.yourpackage.models;
 
-import com.yourpackage.database.Database;
-import com.fasterxml.jackson.databind.JsonNode;
-import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID; //für UUID

@@ -1,12 +1,21 @@
 package com.yourpackage.server;
 
+import com.yourpackage.models.UserService;
+
 import java.io.*;
 import java.net.*;
 
 public class Server {
 
     private ServerSocket serverSocket;
-//sadfds
+    private UserService userService;
+    private RequestHandler requestHandler;
+
+    public Server() {
+    userService = new UserService();
+    requestHandler = new RequestHandler(userService);
+    }
+
     public void start() throws IOException {
         serverSocket = new ServerSocket(10001);
         System.out.println("Server listening on port 10001");
@@ -20,7 +29,7 @@ public class Server {
         }
     }
 
-    private static void handleClient(Socket clientSocket) {
+    private void handleClient(Socket clientSocket) {
         try {
             // Read request
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
@@ -36,7 +45,7 @@ public class Server {
                 System.out.println("Path: " + path);      // Debug-Ausgabe
 
                 // Handle the request using RequestHandler
-                String response = RequestHandler.handleRequest(method, path, clientSocket, in);
+                String response = requestHandler.handleRequest(method, path, clientSocket, in);
                 System.out.println("Response: " + response);  // Debug-Ausgabe
 
                 // Write response

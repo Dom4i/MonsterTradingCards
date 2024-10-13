@@ -3,6 +3,7 @@ package com.yourpackage.server;
 import com.yourpackage.database.Database;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.yourpackage.models.UserService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,9 +19,12 @@ public class RequestHandlerTest {
     // Erstelle einen Testbenutzer
     @BeforeEach
     public void setUp() throws IOException {
+        UserService userService = new UserService();
+        RequestHandler requestHandler = new RequestHandler(userService);
+
         String jsonInput = "{\"Username\":\"testUser\",\"Password\":\"testPass\"}";
         BufferedReader in = new BufferedReader(new StringReader("POST /users HTTP/1.1\r\nContent-Length: " + jsonInput.length() + "\r\n\r\n" + jsonInput));
-        RequestHandler.handlePostRequest("/users", new Socket(), in);
+        requestHandler.handlePostRequest("/users", new Socket(), in);
     }
 
     // Lösche den Testbenutzer
@@ -43,10 +47,12 @@ public class RequestHandlerTest {
 
     @Test
     public void testHandlePostUserCreation() throws IOException {
+        UserService userService = new UserService();
+        RequestHandler requestHandler = new RequestHandler(userService);
         // Wenn der Benutzer bereits existiert, sollte die Antwort nicht 201 sein
         String jsonInput = "{\"Username\":\"testUser\",\"Password\":\"testPass\"}";
         BufferedReader in = new BufferedReader(new StringReader("POST /users HTTP/1.1\r\nContent-Length: " + jsonInput.length() + "\r\n\r\n" + jsonInput));
-        String response = RequestHandler.handlePostRequest("/users", new Socket(), in);
+        String response = requestHandler.handlePostRequest("/users", new Socket(), in);
 
         // Prüfe, ob die Antwort den gewünschten Status zurückgibt
         assertEquals("HTTP/1.1 409 Conflict - User already exists.", response); // Erwartet, dass der Benutzer bereits existiert
@@ -54,20 +60,23 @@ public class RequestHandlerTest {
 
     @Test
     public void testHandlePostUserLogin() throws IOException {
+        UserService userService = new UserService();
+        RequestHandler requestHandler = new RequestHandler(userService);
         String jsonInput = "{\"Username\":\"testUser\",\"Password\":\"testPass\"}";
         BufferedReader in = new BufferedReader(new StringReader("POST /sessions HTTP/1.1\r\nContent-Length: " + jsonInput.length() + "\r\n\r\n" + jsonInput));
-        String response = RequestHandler.handlePostRequest("/sessions", new Socket(), in);
+        String response = requestHandler.handlePostRequest("/sessions", new Socket(), in);
         assertEquals("HTTP/1.1 200 OK\n\nToken: testUser-mtcgToken", response);
     }
 
     @Test
     public void testHandlePutUserUpdate() throws IOException {
-
+        UserService userService = new UserService();
+        RequestHandler requestHandler = new RequestHandler(userService);
 
         // Jetzt aktualisiere die Benutzerdaten
         String jsonInputUpdate = "{\"Name\":\"Updated Name\",\"Bio\":\"Updated bio.\",\"Image\":\"updated_image_url.jpg\"}";
         BufferedReader inUpdate = new BufferedReader(new StringReader("PUT /users/testUser HTTP/1.1\r\nContent-Length: " + jsonInputUpdate.length() + "\r\n\r\n" + jsonInputUpdate));
-        String response = RequestHandler.handlePutRequest("/users/testUser", new Socket(), inUpdate);
+        String response = requestHandler.handlePutRequest("/users/testUser", new Socket(), inUpdate);
 
         // Prüfe, ob die Antwort den gewünschten Status zurückgibt
         assertEquals("HTTP/1.1 204", response); // Erwartet, dass das Update erfolgreich ist
