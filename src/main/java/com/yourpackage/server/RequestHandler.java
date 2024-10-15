@@ -19,17 +19,32 @@ public class RequestHandler {
         this.userService = new UserService(); // Einmalige Instanzierung
     }
 
-    public String handleRequest(String method, String path, Socket clientSocket, BufferedReader in) {
+    public String handleRequest(String method, String path, Socket clientSocket, BufferedReader in) throws IOException {
         String response;
+        String authorization;
+        JsonNode jsonNode;
+        try {
+            String[] parts = readRequest(in);
+            String header = parts[0];
+            String body = parts[1];
+            jsonNode = new ObjectMapper().readTree(body);
+            authorization = getAuthorizationHeader(header);
+
+        } catch (IOException e) {
+            return "HTTP/1.1 400 Bad Request\n\nInvalid JSON format.";
+        }
         switch (method) {
             case "GET":
-                response = handleGetRequest(path);
+                response = handleGetRequest(path, authorization);
                 break;
             case "POST":
-                response = handlePostRequest(path, clientSocket, in);
+                response = handlePostRequest(path, jsonNode, authorization); // Pass jsonNode
                 break;
             case "PUT":
-                response = handlePutRequest(path, clientSocket, in);
+                    response = handlePutRequest(path, jsonNode); // Pass jsonNode
+                break;
+            case "DELETE":
+                response = "HTTP/1.1 501 Method Not Implemented";
                 break;
             default:
                 response = "HTTP/1.1 405 Method Not Allowed";
@@ -38,17 +53,42 @@ public class RequestHandler {
         return response;
     }
 
-    private  String handleGetRequest(String path) {
-        if (path.startsWith("/users/")) {
-            String username = path.split("/")[2]; // Benutzername aus dem Pfad extrahieren
 
-            return getUserData(username);
+    private String handleGetRequest(String path, String authorization) {
+        String[] pathParts = path.split("/");
+        String username = pathParts[2]; // Benutzername aus dem Pfad extrahieren
+        if (!isAuthorized(authorization, username)) {
+            return "HTTP/1.1 401 Unauthorized";
         }
-        return "HTTP/1.1 404 Not Found";
+        // Überprüfen, ob der Pfad die Struktur "/users/{username}" hat
+        if (pathParts.length == 3 && "users".equals(pathParts[1])) {
+            return getUserData(username); // Benutzerdaten abrufen
+        }
+
+        switch (path) {
+            case "/cards":
+                return "HTTP/1.1 501 Method Not Implemented";
+
+            case "/deck":
+                return "HTTP/1.1 501 Method Not Implemented";
+
+            case "/scoreboard":
+                return "HTTP/1.1 501 Method Not Implemented";
+
+            case "/stats":
+                return "HTTP/1.1 501 Method Not Implemented";
+
+            case "/traidings":
+                return "HTTP/1.1 501 Method Not Implemented";
+
+            default:
+                return "HTTP/1.1 404 Not Found"; // Für alle anderen Pfade
+        }
     }
 
-    private String getUserData(String username) {
 
+
+    private String getUserData(String username) {
         User user = userService.getUserFromDatabase(username); // Beispielmethode
 
         if (user != null) {
@@ -57,65 +97,61 @@ public class RequestHandler {
         return "HTTP/1.1 404 Not Found";
     }
 
-    public  String handlePostRequest(String path, Socket clientSocket, BufferedReader in) {
-        ObjectMapper objectMapper = new ObjectMapper();
+    public String handlePostRequest(String path, JsonNode jsonNode, String authorization) {
+            switch (path) {
+                case "/users":
+                    return handleUserCreation(jsonNode);
 
-        try {
-            String[] requestParts = readRequest(in);
-            String header = requestParts[0];
-            String body = requestParts[1]; // Body ist das zweite Element
-            JsonNode jsonNode = objectMapper.readTree(body);
-            String authorization = getAuthorizationHeader(header);
+                case "/sessions":
+                    return handleUserLogin(jsonNode);
 
-            // Überprüfen, ob die nötigen Felder vorhanden sind
-            if (path.equals("/users")) {
-                return handleUserCreation(jsonNode);
-            } else if (path.equals("/sessions")) {
-                return handleUserLogin(jsonNode);
-            } else if (path.equals("/packages")) {
-                return handleCreatePackage(jsonNode, authorization);
-            } else {
+                case "/packages":
+                    return handleCreatePackage(jsonNode, authorization);
+                case "/transactions/packages":
+                    return "HTTP/1.1 501 Method Not Implemented";
+                default:
+                    return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found.";
+            }
+        }
+
+
+
+    public String handlePutRequest(String path, JsonNode jsonNode) {
+            String[] pathParts = path.split("/");
+
+            if (pathParts.length < 2) {
                 return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found.";
             }
-        } catch (IOException e) {
-            return "HTTP/1.1 400 Bad Request\n\nInvalid JSON format.";
-        }
-    }
 
-    public  String handlePutRequest(String path, Socket clientSocket, BufferedReader in) {
-        ObjectMapper objectMapper = new ObjectMapper();
+            switch (pathParts[1]) {
+                case "users":
+                    if (pathParts.length > 2) {
+                        String username = pathParts[2]; // Extrahiere den Benutzernamen aus dem Pfad
+                        return handleEditUserData(jsonNode, username);
+                    }
+                    return "HTTP/1.1 404 Not Found\n\nUsername is missing.";
 
-        try {
-            String[] requestParts = readRequest(in);
-            String body = requestParts[1]; // Body ist das zweite Element
-            JsonNode jsonNode = objectMapper.readTree(body);
+                case "deck":
+                    return "HTTP/1.1 501 Method Not Implemented"; // Noch nicht implementiert
 
-
-            // Überprüfen, ob der Pfad mit "/users/" beginnt
-            if (path.startsWith("/users/")) {
-                String username = path.split("/")[2]; // Extrahiere den Benutzernamen aus dem Pfad
-                UserService userService = new UserService();
-                // Hole den Benutzer aus der Datenbank
-                User user = userService.getUserFromDatabase(username); // Holt den Benutzer basierend auf dem Benutzernamen
-
-                if (user != null) {
-                    // Aktualisiere die Benutzerdaten
-                    userService.updateUserData(user, jsonNode); // Aktualisiert die Benutzerinformationen
-
-                    // Sende die aktualisierten Daten als JSON zurück
-                    return "HTTP/1.1 204";
-                } else {
-                    return "HTTP/1.1 404 Not Found\n\nUser not found."; // Benutzer wurde nicht gefunden
-                }
-            } else {
-                return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found."; // Ungültiger Pfad
+                default:
+                    return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found.";
             }
-        } catch (IOException e) {
-            return "HTTP/1.1 400 Bad Request\n\nInvalid JSON format."; // Fehler beim Lesen des JSON
+        }
+
+    // Methode zur Bearbeitung eines Users
+    private String handleEditUserData(JsonNode jsonNode, String username) {
+
+        User user = userService.getUserFromDatabase(username); // Holt den Benutzer basierend auf dem Benutzernamen
+        if (user != null) {
+            // Aktualisiere die Benutzerdaten
+            userService.updateUserData(user, jsonNode); // Aktualisiert die Benutzerinformationen
+            // Sende die aktualisierten Daten als JSON zurück
+            return "HTTP/1.1 204";
+        } else {
+            return "HTTP/1.1 404 Not Found\n\nUser not found."; // Benutzer wurde nicht gefunden
         }
     }
-
-
 
     // Methode zur Benutzerregistrierung
     private  String handleUserCreation(JsonNode jsonNode) {
@@ -123,9 +159,8 @@ public class RequestHandler {
             String username = jsonNode.get("Username").asText();
             String password = jsonNode.get("Password").asText();
             User newUser = new User(username, password, 20, 100);
-            UserService userService = new UserService();
 
-            // Verwende die modifizierte Methode, um den Benutzer zu erstellen
+            // Verwende die Methode, um den Benutzer zu erstellen
             boolean success = userService.createUserInDatabase(newUser);
 
             if (success) {
@@ -159,20 +194,16 @@ public class RequestHandler {
         }
     }
     public  String handleCreatePackage(JsonNode jsonNode, String authorization) {
-
         try {
             // Überprüfen, ob die Anfrage aus genau 5 Karten besteht
             if (!jsonNode.isArray() || jsonNode.size() != 5) {
                 return "HTTP/1.1 400 Bad Request\n\nA package must contain exactly 5 cards.";
             }
-
             // Admin-Authentifizierung prüfen
-
-
-            if (!authorization.equals("Bearer admin-mtcgToken")) {
-                return "HTTP/1.1 403 Forbidden\n\nYou are not authorized to create packages.";
+            String username = "admin";
+            if (!isAuthorized(authorization, username)) {
+                return "HTTP/1.1 401 Unauthorized";
             }
-
             // Generiere eine Package-ID
             UUID packageId = UUID.randomUUID();
 
@@ -182,7 +213,6 @@ public class RequestHandler {
             if (!packageAdded) {
                 return "HTTP/1.1 409 Conflict - Package already exists.";
             }
-
             List<Card> packageCards = new ArrayList<>();
 
             // Iteriere über die Karten und füge jede zu ihrer entsprechenden Tabelle hinzu
@@ -191,7 +221,6 @@ public class RequestHandler {
                     String cardId = cardNode.get("Id").asText();
                     String cardName = cardNode.get("Name").asText();
                     double cardDamage = cardNode.get("Damage").asDouble();
-
                     // Bestimme den Elementtyp basierend auf dem Namen oder einer anderen Eigenschaft
                     String cardElement = determineElementType(cardName);
                     Card card;
@@ -206,7 +235,6 @@ public class RequestHandler {
                         String cardType = "SPELL";
                         card = new SpellCard(cardId, cardName, cardDamage, cardElement, cardType);
                     }
-
                     // Karte in der Datenbank speichern und zur Liste hinzufügen
                     boolean cardCreated = card.createCard(packageId); // Übergabe der packageId an die Karte
                     if (!cardCreated) {
@@ -217,16 +245,12 @@ public class RequestHandler {
                     return "HTTP/1.1 400 Bad Request\n\nEach card must contain Id, Name, and Damage.";
                 }
             }
-
             return "HTTP/1.1 201 Package Created";
         } catch (Exception e) {
             e.printStackTrace();
             return "HTTP/1.1 500 Internal Server Error\n\nAn error occurred while creating the package.";
         }
     }
-
-
-
 
     // Helper Funktionen
     private String determineElementType(String cardName) {
@@ -244,7 +268,8 @@ public class RequestHandler {
         return cardName.toLowerCase().contains("goblin") || cardName.toLowerCase().contains("dragon") || cardName.toLowerCase().contains("ork");
     }
 
-    private String getAuthorizationHeader(String header) {
+    // Methode zum Auslesen des Authorization-Headers
+    private static String getAuthorizationHeader(String header) {
         String[] lines = header.split("\n");
         for (String line : lines) {
             if (line.startsWith("Authorization: ")) {
@@ -254,8 +279,11 @@ public class RequestHandler {
         return null; // Kein Authorization-Header gefunden
     }
 
-
-
+    private boolean isAuthorized(String authHeader, String username) {
+        // Überprüfen, ob der Header mit "Bearer" beginnt und den Token enthält
+        return authHeader != null && authHeader.startsWith("Bearer ") &&
+                authHeader.equals("Bearer " + username + "-mtcgToken"); // Hier Token überprüfen
+    }
 
     private String[] readRequest(BufferedReader in) throws IOException {
         StringBuilder requestHeaders = new StringBuilder();
