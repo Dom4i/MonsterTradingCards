@@ -9,7 +9,7 @@ import java.util.UUID;
 public abstract class Card {
     private String id;
     private String name;
-    private double damage;
+    private final double damage;
     private String elementType;
     private String cardType;
 
@@ -26,7 +26,7 @@ public abstract class Card {
 
     // Methode zum Hinzufügen einer Card in die Datenbank
     public boolean createCard(UUID packageId) {
-        try (Connection conn = Database.connect()) {
+        try (Connection conn = Database.getInstance().connect()) {
             String insertCardSql = "INSERT INTO cards (card_id, name, damage, element_type, card_type, package_id) VALUES (?, ?, ?, ?, ?, ?)";
             try (PreparedStatement stmt = conn.prepareStatement(insertCardSql)) {
                 stmt.setString(1, id);
@@ -64,10 +64,6 @@ public abstract class Card {
         return damage;
     }
 
-    public void setDamage(double damage) {
-        this.damage = damage;
-    }
-
     public String getElementType() {
         return elementType;
     }
@@ -76,13 +72,19 @@ public abstract class Card {
         this.elementType = elementType;
     }
 
+    public String getCardType() {return cardType;}
+
+    public void setCardType(String cardType) {this.cardType = cardType;}
+
+
     @Override
     public String toString() {
         return "Card{" +
                 "id=" + id +
-                ", name='" + name + '\'' +
+                ", name=" + name +
                 ", damage=" + damage +
                 ", elementType=" + elementType +
+                ", cardType=" + cardType +
                 '}';
     }
 }

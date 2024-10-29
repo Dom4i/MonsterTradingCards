@@ -1,6 +1,8 @@
-package com.yourpackage.models;
+package com.yourpackage.server;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.yourpackage.models.*;
+import com.yourpackage.models.Package;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +26,7 @@ public class PostRequestHandler {
             case "/packages":
                 return handleCreatePackage(jsonNode, authorization);
             case "/transactions/packages":
-                return "HTTP/1.1 501 Method Not Implemented";
+                return handleBuyPackage(authorization);
             default:
                 return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found.";
         }
@@ -62,7 +64,7 @@ public class PostRequestHandler {
 
             if (success) {
                 String token = username + "-mtcgToken"; // Generiere den Token
-                return "HTTP/1.1 200 OK\n\nToken: " + token;
+                return "HTTP/1.1 200 OK\n\n{Token: " + token + "}";
             } else {
                 return "HTTP/1.1 401 Unauthorized\n\nInvalid username or password.";
             }
@@ -79,14 +81,14 @@ public class PostRequestHandler {
             }
             // Admin-Authentifizierung prüfen
             String username = "admin";
-            if (!RequestHelper.isAuthorized(authorization, username)) {
+            if (!isAuthorized(authorization, username)) {
                 return "HTTP/1.1 401 Unauthorized";
             }
             // Generiere eine Package-ID
             UUID packageId = UUID.randomUUID();
 
             // Füge das Paket in die Datenbank ein
-            Package cardPackage = new Package(packageId);
+            com.yourpackage.models.Package cardPackage = new Package(packageId);
             boolean packageAdded = cardPackage.addPackageToDatabase();
             if (!packageAdded) {
                 return "HTTP/1.1 409 Conflict - Package already exists.";
@@ -100,11 +102,11 @@ public class PostRequestHandler {
                     String cardName = cardNode.get("Name").asText();
                     double cardDamage = cardNode.get("Damage").asDouble();
                     // Bestimme den Elementtyp basierend auf dem Namen oder einer anderen Eigenschaft
-                    String cardElement = RequestHelper.determineElementType(cardName);
+                    String cardElement = determineElementType(cardName);
                     Card card;
 
                     // Bestimme, ob es sich um eine MonsterCard oder SpellCard handelt
-                    if (RequestHelper.isMonsterCard(cardName)) {
+                    if (isMonsterCard(cardName)) {
                         // MonsterCard erstellen
                         String cardType = "MONSTER";
                         card = new MonsterCard(cardId, cardName, cardDamage, cardElement, cardType);
@@ -130,5 +132,45 @@ public class PostRequestHandler {
         }
     }
 
+    private String handleBuyPackage(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return "HTTP/1.1 401 Unauthorized";
+        }
+        String token = authorization.substring("Bearer ".length());
+        if (!token.endsWith("-mtcgToken")) {
+            return "HTTP/1.1 401 Unauthorized";
+        }
+        String username = token.substring(0, token.indexOf("-mtcgToken"));
+        User user = userService.getUserFromDatabase(username);
+        if (user.getCoins() < 5) {
+            return "HTTP/1.1 402 Payment Required";
+        }
 
+        boolean success = userService.buyPackageForUser(user);
+        if (success) {
+            return "HTTP/1.1 201 OK";
+        }
+        return "HTTP/1.1 4xx - No Packages available";
+    }
+
+    private String determineElementType(String cardName) {
+        if (cardName.toLowerCase().contains("fire") || cardName.toLowerCase().contains("dragon")) {
+            return "FIRE";
+        } else if (cardName.toLowerCase().contains("water")) {
+            return "WATER";
+        } else {
+            return "NORMAL";
+        }
+    }
+
+    private boolean isMonsterCard(String cardName) {
+        // Logik zur Bestimmung, ob die Karte eine MonsterCard ist
+        return cardName.toLowerCase().contains("goblin") || cardName.toLowerCase().contains("dragon") || cardName.toLowerCase().contains("ork");
+    }
+
+    private boolean isAuthorized(String authHeader, String username) {
+        // Überprüfen, ob der Header mit "Bearer" beginnt und den Token enthält
+        return authHeader != null && authHeader.startsWith("Bearer ") &&
+                authHeader.equals("Bearer " + username + "-mtcgToken"); // Hier Token überprüfen
+    }
 }

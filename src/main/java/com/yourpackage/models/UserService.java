@@ -3,16 +3,16 @@ package com.yourpackage.models;
 import com.yourpackage.database.Database;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID; // Importiere für UUID
 import java.sql.*;
 
 
 public class UserService {
 
-
-
     public boolean createUserInDatabase(User user) {
-        try (Connection conn = Database.connect()) {
+        try (Connection conn = Database.getInstance().connect()) {
             String checkSql = "SELECT COUNT(*) FROM users WHERE username = ?";
             try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
                 checkStmt.setString(1, user.getUsername());
@@ -39,7 +39,7 @@ public class UserService {
 
 
     public boolean loginUser(User user) {
-        try (Connection conn = Database.connect()) {
+        try (Connection conn = Database.getInstance().connect()) {
             String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setString(1, user.getUsername());
@@ -67,32 +67,136 @@ public class UserService {
         return false; // Benutzer nicht gefunden
     }
 
-
-    // Statische Methode, um einen Benutzer aus der Datenbank abzurufen
     public User getUserFromDatabase(String username) {
-        String sql = "SELECT * FROM users WHERE username = ?";
-        try (Connection conn = Database.connect();
+        String sql = """
+        SELECT u.id AS user_id, u.password, u.name AS user_name, u.bio, u.image, u.token, u.score, u.coins,
+               c.card_id, c.name AS card_name, c.damage, c.element_type, c.card_type
+        FROM users u
+        LEFT JOIN user_packages up ON u.id = up.user_id
+        LEFT JOIN cards c ON up.package_id = c.package_id
+        WHERE u.username = ?
+    """;
+
+        try (Connection conn = Database.getInstance().connect();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, username);
             ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                UUID id = (UUID) rs.getObject("id"); // UUID von der Datenbank abrufen
-                String password = rs.getString("password");
-                String name = rs.getString("name");
-                String bio = rs.getString("bio");
-                String image = rs.getString("image");
-                String token = rs.getString("token");
-                int score = rs.getInt("score");
-                int coins = rs.getInt("coins");
 
-                // Erstelle ein neues User-Objekt und gebe es zurück
-                return new User(id, username, password, name, bio, image, coins, score, token);
+            User user = null;
+            while (rs.next()) {
+                // Benutzerinformationen nur beim ersten Durchlauf abrufen und Benutzer erstellen
+                if (user == null) {
+                    UUID id = (UUID) rs.getObject("user_id");
+                    String password = rs.getString("password");
+                    String name = rs.getString("user_name"); // Benutzername mit Alias abrufen
+                    String bio = rs.getString("bio");
+                    String image = rs.getString("image");
+                    String token = rs.getString("token");
+                    int score = rs.getInt("score");
+                    int coins = rs.getInt("coins");
+
+                    user = new User(id, username, password, name, bio, image, coins, score, token);
+                }
+
+                // Karteninformationen abrufen und zur Liste hinzufügen
+                String cardId = rs.getString("card_id");
+                if (cardId != null) {
+                    String cardName = rs.getString("card_name"); // Kartenname mit Alias abrufen
+                    double damage = rs.getDouble("damage");
+                    String elementType = rs.getString("element_type");
+                    String cardType = rs.getString("card_type");
+
+                    Card card;
+                    if ("MONSTER".equals(cardType)) {
+                        card = new MonsterCard(cardId, cardName, damage, elementType, cardType);
+                    } else if ("SPELL".equals(cardType)) {
+                        card = new SpellCard(cardId, cardName, damage, elementType, cardType);
+                    } else {
+                        continue;
+                    }
+                    user.addCardToStack(card); // Karte hinzufügen
+
+                }
             }
+            return user; // Gibt den Benutzer mit allen Karten zurück
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
         return null; // Benutzer wurde nicht gefunden
     }
+
+
+
+
+    public boolean buyPackageForUser(User user) {
+        try (Connection conn = Database.getInstance().connect()) {
+            // Überprüfen, ob der Benutzer existiert und genug Münzen hat
+            String sql = "SELECT coins FROM users WHERE username = ? AND password = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setString(1, user.getUsername());
+                pstmt.setString(2, user.getPassword());
+                ResultSet rs = pstmt.executeQuery();
+
+                if (rs.next()) { // Benutzer gefunden
+                    int coins = rs.getInt("coins");
+
+                    // Verfügbares Paket auswählen
+                    String selectPackageSql = """
+                SELECT package_id FROM packages 
+                WHERE is_available = TRUE 
+                AND package_id NOT IN (SELECT package_id FROM user_packages WHERE user_id = ?)
+                ORDER BY RANDOM()
+                LIMIT 1
+                """;
+                    UUID packageId = null;
+                    try (PreparedStatement selectPackageStmt = conn.prepareStatement(selectPackageSql)) {
+                        selectPackageStmt.setObject(1, user.getId());
+                        ResultSet packageRs = selectPackageStmt.executeQuery();
+                        if (packageRs.next()) {
+                            packageId = (UUID) packageRs.getObject("package_id");
+                        }
+                    }
+
+                    // Wenn ein Paket gefunden wurde, kaufe es
+                    if (packageId != null) {
+                        // Münzen abziehen
+                        int updatedCoins = coins - 5;
+                        String updateSql = "UPDATE users SET coins = ? WHERE username = ?";
+                        try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                            updateStmt.setInt(1, updatedCoins);
+                            updateStmt.setString(2, user.getUsername());
+                            updateStmt.executeUpdate();
+                        }
+
+                        // Paket zu den Benutzerpaketen hinzufügen
+                        String insertUserPackageSql = "INSERT INTO user_packages (user_id, package_id) VALUES (?, ?)";
+                        try (PreparedStatement insertUserPackageStmt = conn.prepareStatement(insertUserPackageSql)) {
+                            insertUserPackageStmt.setObject(1, user.getId());
+                            insertUserPackageStmt.setObject(2, packageId);
+                            insertUserPackageStmt.executeUpdate();
+                        }
+
+                        // Setze das Paket auf nicht verfügbar
+                        String updatePackageSql = "UPDATE packages SET is_available = FALSE WHERE package_id = ?";
+                        try (PreparedStatement updatePackageStmt = conn.prepareStatement(updatePackageSql)) {
+                            updatePackageStmt.setObject(1, packageId);
+                            updatePackageStmt.executeUpdate();
+                        }
+
+                        return true; // Erfolgreich gekauft
+                    } else {
+                        return false; // Keine Pakete mehr verfügbar
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return false; // Benutzer nicht gefunden oder kein Paket verfügbar
+    }
+
+
 
     public void updateUserData(User user, JsonNode jsonNode) {
         if (jsonNode.has("Name")) {
@@ -105,7 +209,7 @@ public class UserService {
             user.setImage(jsonNode.get("Image").asText());
         }
 
-        try (Connection conn = Database.connect()) {
+        try (Connection conn = Database.getInstance().connect()) {
             String sql = "UPDATE users SET name = ?, bio = ?, image = ? WHERE username = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setString(1, user.getName());
@@ -119,19 +223,7 @@ public class UserService {
         }
     }
 
-    public String toJson(User user) {
-        return "{"
-                + "\"id\":\"" + user.getId() + "\", " // UUID des Benutzers
-                + "\"username\":\"" + user.getUsername() + "\", "
-                + "\"password\":\"" + user.getPassword() + "\", " // Achte auf Sicherheit
-                + "\"coins\":" + user.getCoins() + ", "
-                + "\"score\":" + user.getScore() + ", " // Angenommen, du hast eine Methode getScore()
-                + "\"token\":\"" + user.getToken() + "\", " // Angenommen, du hast eine Methode getToken()
-                + "\"name\":\"" + user.getName() + "\", "
-                + "\"bio\":\"" + user.getBio() + "\", "
-                + "\"image\":\"" + user.getImage() + "\""
-                + "}";
-    }
+
 
 
     public void addCardToStack(User user, Card card) {
@@ -145,4 +237,5 @@ public class UserService {
             System.out.println("Deck is full. Cannot add more cards.");
         }
     }
+
 }

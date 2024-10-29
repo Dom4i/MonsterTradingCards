@@ -11,7 +11,7 @@ public class DatabaseTest {
 
     @Test
     public void testConnection() {
-        Connection conn = Database.connect();
+        Connection conn = Database.getInstance().connect();
         assertNotNull(conn, "Connection should not be null");
     }
 }

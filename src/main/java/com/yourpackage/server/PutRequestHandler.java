@@ -1,6 +1,8 @@
-package com.yourpackage.models;
+package com.yourpackage.server;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.yourpackage.models.User;
+import com.yourpackage.models.UserService;
 
 public class PutRequestHandler {
     private final UserService userService;

@@ -2,7 +2,6 @@ package com.yourpackage.server;
 
 import com.yourpackage.database.Database;
 import com.yourpackage.models.*;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
-import java.net.Socket;
 import java.sql.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -42,7 +40,7 @@ public class RequestHandlerTest {
 
     @AfterEach
     public void tearDown() {
-        try (Connection conn = Database.connect()) {
+        try (Connection conn = Database.getInstance().connect()) {
             // Lösche den Testbenutzer
             String sql = "DELETE FROM users WHERE username = ?";
             try (PreparedStatement deleteStmt = conn.prepareStatement(sql)) {
@@ -69,7 +67,7 @@ public class RequestHandlerTest {
         String jsonInput = "{\"Username\":\"testUser\",\"Password\":\"testPass\"}";
         BufferedReader in = new BufferedReader(new StringReader("POST /sessions HTTP/1.1\r\nContent-Length: " + jsonInput.length() + "\r\n\r\n" + jsonInput));
         String response = postRequestHandler.handlePostRequest("/sessions", new ObjectMapper().readTree(jsonInput), null); // Übergebe das JsonNode
-        assertEquals("HTTP/1.1 200 OK\n\nToken: testUser-mtcgToken", response);
+        assertEquals("HTTP/1.1 200 OK\n\n{Token: testUser-mtcgToken}", response);
     }
 
     @Test

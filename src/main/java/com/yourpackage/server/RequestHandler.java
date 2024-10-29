@@ -32,9 +32,11 @@ public class RequestHandler {
         try {
             String[] parts = readRequest(in);
             String header = parts[0];
+            //System.out.println("HEADER: " + header);
             String body = parts[1];
+            //System.out.println("BODY: " + body);
             jsonNode = new ObjectMapper().readTree(body);
-            authorization = RequestHelper.getAuthorizationHeader(header);
+            authorization = getAuthorizationHeader(header);
 
         } catch (IOException e) {
             return "HTTP/1.1 400 Bad Request\n\nInvalid JSON format.";
@@ -88,5 +90,16 @@ public class RequestHandler {
 
         // Header und Body zurückgeben
         return new String[]{requestHeaders.toString(), requestBody.toString()};
+    }
+
+    // Methode zum Auslesen des Authorization-Headers
+    private String getAuthorizationHeader(String header) {
+        String[] lines = header.split("\n");
+        for (String line : lines) {
+            if (line.startsWith("Authorization: ")) {
+                return line.substring("Authorization: ".length()).trim();
+            }
+        }
+        return null; // Kein Authorization-Header gefunden
     }
 }

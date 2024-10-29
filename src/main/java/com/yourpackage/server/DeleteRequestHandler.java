@@ -1,4 +1,6 @@
-package com.yourpackage.models;
+package com.yourpackage.server;
+
+import com.yourpackage.models.UserService;
 
 public class DeleteRequestHandler {
     private final UserService userService;

@@ -12,8 +12,8 @@ public class Server {
     private RequestHandler requestHandler;
 
     public Server() {
-    userService = new UserService();
-    requestHandler = new RequestHandler(userService);
+        userService = new UserService();
+        requestHandler = new RequestHandler(userService);
     }
 
     public void start() throws IOException {
