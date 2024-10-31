@@ -140,13 +140,13 @@ public class UserService {
                 if (rs.next()) { // Benutzer gefunden
                     int coins = rs.getInt("coins");
 
-                    // Verfügbares Paket auswählen
+                    // Verfügbares Paket auswählen (das erste, das verfügbar ist)
                     String selectPackageSql = """
-                SELECT package_id FROM packages 
-                WHERE is_available = TRUE 
-                AND package_id NOT IN (SELECT package_id FROM user_packages WHERE user_id = ?)
-                ORDER BY RANDOM()
-                LIMIT 1
+                    SELECT package_id FROM packages 
+                    WHERE is_available = TRUE 
+                    AND package_id NOT IN (SELECT package_id FROM user_packages WHERE user_id = ?)
+                    ORDER BY package_id ASC
+                    LIMIT 1
                 """;
                     UUID packageId = null;
                     try (PreparedStatement selectPackageStmt = conn.prepareStatement(selectPackageSql)) {

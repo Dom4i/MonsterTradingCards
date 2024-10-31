@@ -30,10 +30,10 @@ public class GetRequestHandler {
         }
         switch (path) {
             case "/cards":
-                return getCardStack(user);
+                return printCardStack(user);
 
             case "/deck":
-                return getCardDeck(user);
+                return printCardDeck(user);
 
             case "/scoreboard":
                 return "HTTP/1.1 501 Method Not Implemented";
@@ -49,7 +49,7 @@ public class GetRequestHandler {
         }
     }
 
-    private String getCardStack(User user) {
+    private String printCardStack(User user) {
         if (user != null) {
             return "HTTP/1.1 200\r\n" + cardToJson(user.getCardStack(), user.getUsername());
         }
@@ -66,7 +66,7 @@ public class GetRequestHandler {
         return "HTTP/1.1 404 Not Found";
     }
 
-    private String getCardDeck(User user) {
+    private String printCardDeck(User user) {
         if (user != null) {
             String userJson = cardToJson(user.getDeck(), user.getUsername());
             return "HTTP/1.1 200\r\n" + userJson;
@@ -96,33 +96,31 @@ public class GetRequestHandler {
 
     public String cardToJson(List<Card> cards, String username) {
         StringBuilder jsonBuilder = new StringBuilder();
-        jsonBuilder.append("{\n") // Neue Zeile für den Haupt-JSON-Block
-                .append("  \"username\":\"").append(username).append("\",\n")
-                .append("  \"cards\": [\n");
-
+        jsonBuilder.append("{\r\n") // Neue Zeile für den Haupt-JSON-Block
+                .append("  \"username\":\"").append(username).append("\",\r\n")
+                .append("  \"cards\": [\r\n");
 
         for (int i = 0; i < cards.size(); i++) {
             Card card = cards.get(i);
             jsonBuilder.append("    {") // Einrückung für die Kartenobjekte
-                    .append("\n      \"card_id\":\"").append(card.getId()).append("\",\n")
-                    .append("      \"name\":\"").append(card.getName()).append("\",\n")
-                    .append("      \"damage\":").append(card.getDamage()).append(",\n")
-                    .append("      \"element_type\":\"").append(card.getElementType()).append("\",\n")
-                    .append("      \"card_type\":\"").append(card.getCardType()).append("\"\n")
+                    .append("\r\n      \"card_id\":\"").append(card.getId()).append("\",\r\n")
+                    .append("      \"name\":\"").append(card.getName()).append("\",\r\n")
+                    .append("      \"damage\":").append(card.getDamage()).append(",\r\n")
+                    .append("      \"element_type\":\"").append(card.getElementType()).append("\",\r\n")
+                    .append("      \"card_type\":\"").append(card.getCardType()).append("\"\r\n")
                     .append("    }");
 
             if (i < cards.size() - 1) {
-                jsonBuilder.append(",\n"); // Komma zwischen den Karten hinzufügen und neue Zeile
+                jsonBuilder.append(",\r\n"); // Komma zwischen den Karten hinzufügen und neue Zeile
             } else {
-                jsonBuilder.append("\n"); // Neue Zeile nach der letzten Karte
+                jsonBuilder.append("\r\n"); // Neue Zeile nach der letzten Karte
             }
         }
 
-        jsonBuilder.append("  ]\n") // Einrückung für den Karten-Array
+        jsonBuilder.append("  ]\r\n") // Einrückung für den Karten-Array
                 .append("}");
         return jsonBuilder.toString();
     }
-
 
 }
 

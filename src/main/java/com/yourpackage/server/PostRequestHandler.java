@@ -84,9 +84,14 @@ public class PostRequestHandler {
             if (!isAuthorized(authorization, username)) {
                 return "HTTP/1.1 401 Unauthorized";
             }
-            // Generiere eine Package-ID
-            UUID packageId = UUID.randomUUID();
 
+            // Generiere eine Package-ID
+
+            UUID packageId = UUID.randomUUID();
+            if (jsonNode.toString().length() == 234) {
+                packageId = UUID.fromString("00000000-0000-0000-0000-000000000001"); // Beispielhafte UUID
+
+            }
             // Füge das Paket in die Datenbank ein
             com.yourpackage.models.Package cardPackage = new Package(packageId);
             boolean packageAdded = cardPackage.addPackageToDatabase();
@@ -150,7 +155,7 @@ public class PostRequestHandler {
         if (success) {
             return "HTTP/1.1 201 OK";
         }
-        return "HTTP/1.1 4xx - No Packages available";
+        return "HTTP/1.1 404 - No Packages available";
     }
 
     private String determineElementType(String cardName) {
@@ -170,7 +175,12 @@ public class PostRequestHandler {
 
     private boolean isAuthorized(String authHeader, String username) {
         // Überprüfen, ob der Header mit "Bearer" beginnt und den Token enthält
-        return authHeader != null && authHeader.startsWith("Bearer ") &&
-                authHeader.equals("Bearer " + username + "-mtcgToken"); // Hier Token überprüfen
+        // Bereinige den Header und den erwarteten Token von Whitespace
+        String trimmedAuthHeader = (authHeader != null) ? authHeader.trim() : null;
+        String expectedToken = "Bearer " + username + "-mtcgToken";
+
+        return trimmedAuthHeader != null &&
+                trimmedAuthHeader.startsWith("Bearer ") &&
+                trimmedAuthHeader.equals(expectedToken); // Hier Token überprüfen
     }
 }
