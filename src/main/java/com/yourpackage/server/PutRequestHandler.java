@@ -15,7 +15,7 @@ public class PutRequestHandler {
         String[] pathParts = path.split("/");
 
         if (pathParts.length < 2) {
-            return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found.";
+            return createJsonResponse("404 Not Found", "The requested resource was not found");
         }
         switch (pathParts[1]) {
             case "users":
@@ -23,13 +23,13 @@ public class PutRequestHandler {
                     String username = pathParts[2]; // Extrahiere den Benutzernamen aus dem Pfad
                     return handleEditUserData(jsonNode, username);
                 }
-                return "HTTP/1.1 404 Not Found\n\nUsername is missing.";
+                return createJsonResponse("404 Not Found", "Username is missing");
 
             case "deck":
                 return "HTTP/1.1 501 Method Not Implemented"; // Noch nicht implementiert
 
             default:
-                return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found.";
+                return createJsonResponse("404 Not Found", "The requested resource was not found");
         }
     }
 
@@ -41,9 +41,12 @@ public class PutRequestHandler {
             // Aktualisiere die Benutzerdaten
             userService.updateUserData(user, jsonNode); // Aktualisiert die Benutzerinformationen
             // Sende die aktualisierten Daten als JSON zurück
-            return "HTTP/1.1 204";
+            return createJsonResponse("204 No Content", "User data updated");
         } else {
-            return "HTTP/1.1 404 Not Found\n\nUser not found."; // Benutzer wurde nicht gefunden
+            return createJsonResponse("404 Not Found", "User not found");
         }
+    }
+    public String createJsonResponse(String code, String message) {
+        return "HTTP/1.1 " + code + "\nContent-Type: application/json\n\n" + "{ \"message\": \"" + message + "\" }";
     }
 }

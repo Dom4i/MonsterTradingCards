@@ -16,11 +16,11 @@ public class GetRequestHandler {
     public String handleGetRequest(String path, String authorization) {
         String[] pathParts = path.split("/");
         if (authorization == null || !authorization.startsWith("Bearer ")) {
-            return "HTTP/1.1 401 Unauthorized";
+            return createJsonResponse("401 Unauthorized", "");
         }
         String token = authorization.substring("Bearer ".length());
         if (!token.endsWith("-mtcgToken")) {
-            return "HTTP/1.1 401 Unauthorized";
+            return createJsonResponse("401 Unauthorized", "");
         }
         String username = token.substring(0, token.indexOf("-mtcgToken"));
         User user = userService.getUserFromDatabase(username);
@@ -45,33 +45,32 @@ public class GetRequestHandler {
                 return "HTTP/1.1 501 Method Not Implemented";
 
             default:
-                return "HTTP/1.1 404 Not Found"; // Für alle anderen Pfade
+                return createJsonResponse("404 Not Found", "Path not found"); // Für alle anderen Pfade
         }
     }
 
     private String printCardStack(User user) {
         if (user != null) {
-            return "HTTP/1.1 200\r\n" + cardToJson(user.getCardStack(), user.getUsername());
+            return createJsonResponse("200 OK", cardToJson(user.getCardStack(), user.getUsername()));
         }
-        return "HTTP/1.1 404 Not Found";
+        return createJsonResponse("404 Not Found", "User not found");
     }
 
 
     private String getUserData(User user) {
-
         if (user != null) {
             String userJson = userDataToJson(user);
-            return "HTTP/1.1 200\r\n" + userJson;
+            return createJsonResponse("200 OK", userJson);
         }
-        return "HTTP/1.1 404 Not Found";
+        return createJsonResponse("404 Not Found", "User not found");
     }
 
     private String printCardDeck(User user) {
         if (user != null) {
             String userJson = cardToJson(user.getDeck(), user.getUsername());
-            return "HTTP/1.1 200\r\n" + userJson;
+            return createJsonResponse("200 OK", userJson);
         }
-        return "HTTP/1.1 404 Not Found";
+        return createJsonResponse("404 Not Found", "User not found");
     }
 
     private boolean isAuthorized(String authHeader, String username) {
@@ -121,6 +120,8 @@ public class GetRequestHandler {
                 .append("}");
         return jsonBuilder.toString();
     }
-
+    public String createJsonResponse(String code, String message) {
+        return "HTTP/1.1 " + code + "\nContent-Type: application/json\n\n" + "{ \"message\": \"" + message + "\" }";
+    }
 }
 

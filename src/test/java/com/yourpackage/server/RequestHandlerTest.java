@@ -83,7 +83,7 @@ public class RequestHandlerTest {
         String response = postRequestHandler.handlePostRequest("/users", new ObjectMapper().readTree(jsonInput), null); // Übergebe das JsonNode
 
         // Prüfe, ob die Antwort den gewünschten Status zurückgibt
-        assertEquals("HTTP/1.1 409 Conflict - User already exists.", response); // Erwartet, dass der Benutzer bereits existiert
+        assertEquals(postRequestHandler.createJsonResponse("409 Conflict", "User already exists"), response); // Erwartet, dass der Benutzer bereits existiert
     }
 
     @Test
@@ -91,7 +91,7 @@ public class RequestHandlerTest {
         String jsonInput = "{\"Username\":\"testUser\",\"Password\":\"testPass\"}";
         BufferedReader in = new BufferedReader(new StringReader("POST /sessions HTTP/1.1\r\nContent-Length: " + jsonInput.length() + "\r\n\r\n" + jsonInput));
         String response = postRequestHandler.handlePostRequest("/sessions", new ObjectMapper().readTree(jsonInput), null); // Übergebe das JsonNode
-        assertEquals("HTTP/1.1 200 OK\n\n{Token: testUser-mtcgToken}", response);
+        assertEquals(postRequestHandler.createJsonResponse("200 OK", "Login successful\", \"token\": \"testUser-mtcgToken"), response);
     }
 
     @Test
@@ -106,9 +106,9 @@ public class RequestHandlerTest {
         String authorization = "Bearer testUser-mtcgToken";
         User user = userService.getUserFromDatabase("testUser");
         String response = postRequestHandler.handlePostRequest("/transactions/packages", null, authorization);
-        assertEquals("HTTP/1.1 201 OK", response, "Response should be 201 OK");
+        assertEquals(postRequestHandler.createJsonResponse("201 OK", "Package acquired!"), response, "Response should be 201 OK");
         String failedResponse = postRequestHandler.handlePostRequest("/transactions/packages", null, authorization);
-        assertEquals("HTTP/1.1 404 - No Packages available", failedResponse, "Response should be 404 - No Packages available");
+        assertEquals(postRequestHandler.createJsonResponse("404 Not found", "No packages available"), failedResponse, "Response should be 404 - No Packages available");
 
         // Confirm coins were deducted
         User updatedUser = userService.getUserFromDatabase("testUser");
@@ -120,7 +120,7 @@ public class RequestHandlerTest {
     public void testPrintCardStack() throws SQLException {
         postRequestHandler.handlePostRequest("/transactions/packages", null, "Bearer testUser-mtcgToken");
         String response = getRequestHandler.handleGetRequest("/cards", "Bearer testUser-mtcgToken");
-        assertEquals(response, "HTTP/1.1 200\r\n" + "{\r\n" +
+        assertEquals(response, getRequestHandler.createJsonResponse("200 OK", "{\r\n" +
                 "  \"username\":\"testUser\",\r\n" +
                 "  \"cards\": [\r\n" +
                 "    {\r\n" +
@@ -159,7 +159,7 @@ public class RequestHandlerTest {
                 "      \"card_type\":\"SPELL\"\r\n" +
                 "    }\r\n" +
                 "  ]\r\n" +
-                "}");
+                "}"));
     }
 
 
@@ -171,6 +171,6 @@ public class RequestHandlerTest {
         String response = putRequestHandler.handlePutRequest("/users/testUser", new ObjectMapper().readTree(jsonInputUpdate)); // Übergebe das JsonNode
 
         // Prüfe, ob die Antwort den gewünschten Status zurückgibt
-        assertEquals("HTTP/1.1 204", response); // Erwartet, dass das Update erfolgreich ist
+        assertEquals(putRequestHandler.createJsonResponse("204 No Content", "User data updated"), response); // Erwartet, dass das Update erfolgreich ist
     }
 }

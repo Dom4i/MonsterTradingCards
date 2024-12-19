@@ -28,7 +28,7 @@ public class PostRequestHandler {
             case "/transactions/packages":
                 return handleBuyPackage(authorization);
             default:
-                return "HTTP/1.1 404 Not Found\n\nThe requested resource was not found.";
+                return createJsonResponse("404 Not Found", "The requested resource was not found");
         }
     }
 
@@ -43,12 +43,15 @@ public class PostRequestHandler {
             boolean success = userService.createUserInDatabase(newUser);
 
             if (success) {
-                return "HTTP/1.1 201";
+                return createJsonResponse("201", "Successfully created a new user");
+
             } else {
-                return "HTTP/1.1 409 Conflict - User already exists.";
+                return createJsonResponse("409 Conflict", "User already exists");
+
             }
         } else {
-            return "HTTP/1.1 400 Bad Request\n\nMissing Username or Password.";
+            return createJsonResponse("400 Bad Request", "Missing Username or Password");
+
         }
     }
 
@@ -64,12 +67,13 @@ public class PostRequestHandler {
 
             if (success) {
                 String token = username + "-mtcgToken"; // Generiere den Token
-                return "HTTP/1.1 200 OK\n\n{Token: " + token + "}";
+                return "HTTP/1.1 200 OK\nContent-Type: application/json\n\n" +
+                        "{ \"message\": \"Login successful\", \"token\": \"" + token + "\" }";
             } else {
-                return "HTTP/1.1 401 Unauthorized\n\nInvalid username or password.";
+                return createJsonResponse("401 Unauthorized", "Invalid username or password");
             }
         } else {
-            return "HTTP/1.1 400 Bad Request\n\nMissing Username or Password.";
+            return createJsonResponse("400 Bad Request", "Missing Username or Password");
         }
     }
 
@@ -77,12 +81,12 @@ public class PostRequestHandler {
         try {
             // Überprüfen, ob die Anfrage aus genau 5 Karten besteht
             if (!jsonNode.isArray() || jsonNode.size() != 5) {
-                return "HTTP/1.1 400 Bad Request\n\nA package must contain exactly 5 cards.";
+                return createJsonResponse("400 Bad Request", "A package must contain exactly 5 cards");
             }
             // Admin-Authentifizierung prüfen
             String username = "admin";
             if (!isAuthorized(authorization, username)) {
-                return "HTTP/1.1 401 Unauthorized";
+                return createJsonResponse("401 Unauthorized", "Invalid username or password");
             }
 
             // Generiere eine Package-ID
@@ -96,7 +100,7 @@ public class PostRequestHandler {
             com.yourpackage.models.Package cardPackage = new Package(packageId);
             boolean packageAdded = cardPackage.addPackageToDatabase();
             if (!packageAdded) {
-                return "HTTP/1.1 409 Conflict - Package already exists.";
+                return createJsonResponse("409 Conflict", "Package already exists");
             }
             List<Card> packageCards = new ArrayList<>();
 
@@ -123,39 +127,39 @@ public class PostRequestHandler {
                     // Karte in der Datenbank speichern und zur Liste hinzufügen
                     boolean cardCreated = card.createCard(packageId); // Übergabe der packageId an die Karte
                     if (!cardCreated) {
-                        return "HTTP/1.1 400 Bad Request\n\nCard already exists.";
+                        return createJsonResponse("409 Conflict", "Card already exists");
                     }
                     packageCards.add(card);
                 } else {
-                    return "HTTP/1.1 400 Bad Request\n\nEach card must contain Id, Name, and Damage.";
+                    return createJsonResponse("400 Bad Request", "Each card must contain ID, name and damage");
                 }
             }
-            return "HTTP/1.1 201 Package Created";
+            return createJsonResponse("201 OK", "Package created");
         } catch (Exception e) {
             e.printStackTrace();
-            return "HTTP/1.1 500 Internal Server Error\n\nAn error occurred while creating the package.";
+            return createJsonResponse("500 Internal server error", "An error occurred while creating the package");
         }
     }
 
     private String handleBuyPackage(String authorization) {
         if (authorization == null || !authorization.startsWith("Bearer ")) {
-            return "HTTP/1.1 401 Unauthorized";
+            return createJsonResponse("401 Unauthorized", "");
         }
         String token = authorization.substring("Bearer ".length());
         if (!token.endsWith("-mtcgToken")) {
-            return "HTTP/1.1 401 Unauthorized";
+            return createJsonResponse("401 Unauthorized", "");
         }
         String username = token.substring(0, token.indexOf("-mtcgToken"));
         User user = userService.getUserFromDatabase(username);
         if (user.getCoins() < 5) {
-            return "HTTP/1.1 402 Payment Required";
+            return createJsonResponse("402", "Payment Required");
         }
 
         boolean success = userService.buyPackageForUser(user);
         if (success) {
-            return "HTTP/1.1 201 OK";
+            return createJsonResponse("201 OK", "Package acquired!");
         }
-        return "HTTP/1.1 404 - No Packages available";
+        return createJsonResponse("404 Not found", "No packages available");
     }
 
     private String determineElementType(String cardName) {
@@ -182,5 +186,8 @@ public class PostRequestHandler {
         return trimmedAuthHeader != null &&
                 trimmedAuthHeader.startsWith("Bearer ") &&
                 trimmedAuthHeader.equals(expectedToken); // Hier Token überprüfen
+    }
+    public String createJsonResponse(String code, String message) {
+        return "HTTP/1.1 " + code + "\nContent-Type: application/json\n\n" + "{ \"message\": \"" + message + "\" }";
     }
 }
