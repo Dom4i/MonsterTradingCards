@@ -68,62 +68,125 @@ public class UserService {
     }
 
     public User getUserFromDatabase(String username) {
-        String sql = """
-        SELECT u.id AS user_id, u.password, u.name AS user_name, u.bio, u.image, u.token, u.score, u.coins,
-               c.card_id, c.name AS card_name, c.damage, c.element_type, c.card_type
-        FROM users u
-        LEFT JOIN user_packages up ON u.id = up.user_id
-        LEFT JOIN cards c ON up.package_id = c.package_id
-        WHERE u.username = ?
+        String sqlUserCards = """
+    SELECT u.id AS user_id, u.password, u.name AS user_name, u.bio, u.image, u.token, u.score, u.coins,
+           c.card_id, c.name AS card_name, c.damage, c.element_type, c.card_type
+    FROM users u
+    LEFT JOIN user_cards uc ON u.id = uc.user_id
+    LEFT JOIN cards c ON uc.card_id = c.card_id
+    WHERE u.username = ?
     """;
 
-        try (Connection conn = Database.getInstance().connect();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, username);
-            ResultSet rs = pstmt.executeQuery();
+        String sqlDeckCards = """
+    SELECT u.id AS user_id, u.password, u.name AS user_name, u.bio, u.image, u.token, u.score, u.coins,
+           c.card_id, c.name AS card_name, c.damage, c.element_type, c.card_type
+    FROM users u
+    LEFT JOIN deck d ON u.id = d.user_id
+    LEFT JOIN cards c ON d.card_id = c.card_id
+    WHERE u.username = ?
+    LIMIT 4
+    """;
 
+        try (Connection conn = Database.getInstance().connect()) {
+            // Erste Abfrage: Alle Karten des Benutzers aus der user_cards-Tabelle holen
             User user = null;
-            while (rs.next()) {
-                // Benutzerinformationen nur beim ersten Durchlauf abrufen und Benutzer erstellen
-                if (user == null) {
-                    UUID id = (UUID) rs.getObject("user_id");
-                    String password = rs.getString("password");
-                    String name = rs.getString("user_name"); // Benutzername mit Alias abrufen
-                    String bio = rs.getString("bio");
-                    String image = rs.getString("image");
-                    String token = rs.getString("token");
-                    int score = rs.getInt("score");
-                    int coins = rs.getInt("coins");
+            try (PreparedStatement pstmtUserCards = conn.prepareStatement(sqlUserCards)) {
+                pstmtUserCards.setString(1, username);
+                try (ResultSet rsUserCards = pstmtUserCards.executeQuery()) {
 
-                    user = new User(id, username, password, name, bio, image, coins, score, token);
-                }
+                    while (rsUserCards.next()) {
+                        // Benutzerinformationen nur beim ersten Durchlauf abrufen und Benutzer erstellen
+                        if (user == null) {
+                            UUID id = (UUID) rsUserCards.getObject("user_id");
+                            String password = rsUserCards.getString("password");
+                            String name = rsUserCards.getString("user_name"); // Benutzername mit Alias abrufen
+                            String bio = rsUserCards.getString("bio");
+                            String image = rsUserCards.getString("image");
+                            String token = rsUserCards.getString("token");
+                            int score = rsUserCards.getInt("score");
+                            int coins = rsUserCards.getInt("coins");
 
-                // Karteninformationen abrufen und zur Liste hinzufügen
-                String cardId = rs.getString("card_id");
-                if (cardId != null) {
-                    String cardName = rs.getString("card_name"); // Kartenname mit Alias abrufen
-                    double damage = rs.getDouble("damage");
-                    String elementType = rs.getString("element_type");
-                    String cardType = rs.getString("card_type");
+                            user = new User(id, username, password, name, bio, image, coins, score, token);
+                        }
 
-                    Card card;
-                    if ("MONSTER".equals(cardType)) {
-                        card = new MonsterCard(cardId, cardName, damage, elementType, cardType);
-                    } else if ("SPELL".equals(cardType)) {
-                        card = new SpellCard(cardId, cardName, damage, elementType, cardType);
-                    } else {
-                        continue;
+                        // Karteninformationen aus der user_cards-Tabelle abrufen und zur Liste hinzufügen
+                        String cardId = rsUserCards.getString("card_id");
+                        if (cardId != null) {
+                            String cardName = rsUserCards.getString("card_name");
+                            double damage = rsUserCards.getDouble("damage");
+                            String elementType = rsUserCards.getString("element_type");
+                            String cardType = rsUserCards.getString("card_type");
+
+                            Card card;
+                            if ("MONSTER".equals(cardType)) {
+                                card = new MonsterCard(cardId, cardName, damage, elementType, cardType);
+                            } else if ("SPELL".equals(cardType)) {
+                                card = new SpellCard(cardId, cardName, damage, elementType, cardType);
+                            } else {
+                                continue;
+                            }
+                            user.addCardToStack(card); // Karte hinzufügen
+                        }
                     }
-                    user.addCardToStack(card); // Karte hinzufügen
-
+                } catch (SQLException e) {
+                    // Fehler beim Abrufen der Benutzerkarten
+                    System.err.println("Fehler beim Abrufen der Benutzerkarten: " + e.getMessage());
+                    return null;
                 }
+
+                // Zweite Abfrage: Karten aus dem Deck holen
+                try (PreparedStatement pstmtDeckCards = conn.prepareStatement(sqlDeckCards)) {
+                    pstmtDeckCards.setString(1, username);
+                    try (ResultSet rsDeckCards = pstmtDeckCards.executeQuery()) {
+
+                        // Die Deckkarten hinzufügen
+                        while (rsDeckCards.next()) {
+                            String cardId = rsDeckCards.getString("card_id");
+                            if (cardId != null) {
+                                String cardName = rsDeckCards.getString("card_name");
+                                double damage = rsDeckCards.getDouble("damage");
+                                String elementType = rsDeckCards.getString("element_type");
+                                String cardType = rsDeckCards.getString("card_type");
+
+                                Card card;
+                                if ("MONSTER".equals(cardType)) {
+                                    card = new MonsterCard(cardId, cardName, damage, elementType, cardType);
+                                } else if ("SPELL".equals(cardType)) {
+                                    card = new SpellCard(cardId, cardName, damage, elementType, cardType);
+                                } else {
+                                    continue;
+                                }
+                                user.addCardToDeck(card);
+                            }
+                        }
+                    } catch (SQLException e) {
+                        // Fehler beim Abrufen der Deckkarten
+                        System.err.println("Fehler beim Abrufen der Deckkarten: " + e.getMessage());
+                        return null;
+                    }
+                } catch (SQLException e) {
+                    System.err.println("Fehler beim Vorbereiten der Deck-Abfrage: " + e.getMessage());
+                    return null;
+                }
+
+            } catch (SQLException e) {
+                // Fehler beim Vorbereiten der Benutzerkarten-Abfrage
+                System.err.println("Fehler beim Vorbereiten der Benutzerkarten-Abfrage: " + e.getMessage());
+                return null;
             }
-            return user; // Gibt den Benutzer mit allen Karten zurück
+
+            return user; // Gibt den Benutzer mit allen Karten aus der user_cards- und deck-Tabelle zurück
+
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            // Fehler beim Verbindungsaufbau zur Datenbank
+            System.err.println("Fehler beim Verbindungsaufbau zur Datenbank: " + e.getMessage());
         }
+
         return null; // Benutzer wurde nicht gefunden
     }
+
+
+
 
 
 
@@ -142,11 +205,11 @@ public class UserService {
 
                     // Verfügbares Paket auswählen (das erste, das verfügbar ist)
                     String selectPackageSql = """
-                    SELECT package_id FROM packages 
-                    WHERE is_available = TRUE 
-                    AND package_id NOT IN (SELECT package_id FROM user_packages WHERE user_id = ?)
-                    ORDER BY package_id ASC
-                    LIMIT 1
+                SELECT package_id FROM packages 
+                WHERE is_available = TRUE 
+                AND package_id NOT IN (SELECT package_id FROM user_packages WHERE user_id = ?)
+                ORDER BY created_at ASC
+                LIMIT 1
                 """;
                     UUID packageId = null;
                     try (PreparedStatement selectPackageStmt = conn.prepareStatement(selectPackageSql)) {
@@ -181,6 +244,26 @@ public class UserService {
                         try (PreparedStatement updatePackageStmt = conn.prepareStatement(updatePackageSql)) {
                             updatePackageStmt.setObject(1, packageId);
                             updatePackageStmt.executeUpdate();
+                        }
+
+                        // Jetzt müssen wir die 5 Karten des Pakets dem Benutzer zuweisen
+                        // Karten im Paket abrufen
+                        String selectCardsSql = "SELECT card_id FROM cards WHERE package_id = ?";
+                        try (PreparedStatement selectCardsStmt = conn.prepareStatement(selectCardsSql)) {
+                            selectCardsStmt.setObject(1, packageId);
+                            ResultSet cardsRs = selectCardsStmt.executeQuery();
+
+                            while (cardsRs.next()) {
+                                String cardId = cardsRs.getString("card_id");
+
+                                // Karte dem Benutzer zuweisen (in user_cards-Tabelle einfügen)
+                                String insertUserCardSql = "INSERT INTO user_cards (user_id, card_id) VALUES (?, ?)";
+                                try (PreparedStatement insertUserCardStmt = conn.prepareStatement(insertUserCardSql)) {
+                                    insertUserCardStmt.setObject(1, user.getId());
+                                    insertUserCardStmt.setString(2, cardId);
+                                    insertUserCardStmt.executeUpdate();
+                                }
+                            }
                         }
 
                         return true; // Erfolgreich gekauft
@@ -222,6 +305,49 @@ public class UserService {
             e.printStackTrace();
         }
     }
+
+
+    public boolean updateUserDeck(User user, JsonNode jsonNode) {
+        if (jsonNode.size() == 4) {
+            try (Connection conn = Database.getInstance().connect()) {
+                String checkOwnershipSql = """
+            SELECT 1 FROM user_cards WHERE card_id = ? AND user_id = ?
+            """;
+                try (PreparedStatement stmt = conn.prepareStatement(checkOwnershipSql)) {
+                    for (JsonNode cardNode : jsonNode) {
+                        String cardId = cardNode.asText();  // Extrahiere die card_id aus dem JSON
+
+                        // Setze die Parameter für die card_id und user_id
+                        stmt.setString(1, cardId);
+                        stmt.setObject(2, user.getId());
+
+                        try (ResultSet rs = stmt.executeQuery()) {
+                            if (!rs.next()) {
+                                // Wenn keine Ergebnisse zurückgegeben werden, bedeutet das, dass die Karte nicht dem Benutzer gehört
+                                System.out.println("test");
+                                return false;
+                            }
+                        }
+
+                        // Füge die Karte ins Deck ein, wenn die Besitzüberprüfung erfolgreich war
+                        String insertDeckSql = "INSERT INTO deck (user_id, card_id) VALUES (?, ?)";
+                        try (PreparedStatement insertStmt = conn.prepareStatement(insertDeckSql)) {
+                            insertStmt.setObject(1, user.getId());
+                            insertStmt.setString(2, cardId);
+                            insertStmt.executeUpdate();
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return false;
+            }
+            return true;
+        }
+        return false;  // Wenn das JSON keine Karten enthält
+    }
+
+
 
 
 

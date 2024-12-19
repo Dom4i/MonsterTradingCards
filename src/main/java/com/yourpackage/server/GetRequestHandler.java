@@ -15,6 +15,7 @@ public class GetRequestHandler {
 
     public String handleGetRequest(String path, String authorization) {
         String[] pathParts = path.split("/");
+        //System.out.println(pathParts[2]); //Username vom Pfad
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             return createJsonResponse("401 Unauthorized", "");
         }
@@ -23,6 +24,10 @@ public class GetRequestHandler {
             return createJsonResponse("401 Unauthorized", "");
         }
         String username = token.substring(0, token.indexOf("-mtcgToken"));
+        //System.out.println(username); //Username von der Authorization herausgefiltert
+        if (!username.equals(pathParts[2])) {
+            return createJsonResponse("401 Unauthorized", "");
+        }
         User user = userService.getUserFromDatabase(username);
         // Überprüfen, ob der Pfad die Struktur "/users/{username}" hat
         if (pathParts.length == 3 && "users".equals(pathParts[1])) {
@@ -35,6 +40,8 @@ public class GetRequestHandler {
             case "/deck":
                 return printCardDeck(user);
 
+            case "/deck?format=plain":
+                return printPlainCardDeck(user);
             case "/scoreboard":
                 return "HTTP/1.1 501 Method Not Implemented";
 
@@ -73,6 +80,14 @@ public class GetRequestHandler {
         return createJsonResponse("404 Not Found", "User not found");
     }
 
+    private String printPlainCardDeck(User user) {
+        if (user != null) {
+            String deck = createPlainResponse(user);
+            return createJsonResponse("200 OK", deck);
+        }
+        return createJsonResponse("404 Not Found", "User not found");
+    }
+
     private boolean isAuthorized(String authHeader, String username) {
         // Überprüfen, ob der Header mit "Bearer" beginnt und den Token enthält
         return authHeader != null && authHeader.startsWith("Bearer ") &&
@@ -93,6 +108,13 @@ public class GetRequestHandler {
                 + "}";
     }
 
+    public String createPlainResponse(User user) {
+        String message = "";
+        for (Card card : user.getCardStack()) {
+            message +="ID: " + card.getId() + ", Name: " + card.getName() + "\n";
+        }
+        return message;
+    }
     public String cardToJson(List<Card> cards, String username) {
         StringBuilder jsonBuilder = new StringBuilder();
         jsonBuilder.append("{\r\n") // Neue Zeile für den Haupt-JSON-Block

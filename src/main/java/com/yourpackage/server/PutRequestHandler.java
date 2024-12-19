@@ -11,22 +11,30 @@ public class PutRequestHandler {
         this.userService = userService;
     }
 
-    public String handlePutRequest(String path, JsonNode jsonNode) {
+    public String handlePutRequest(String path, JsonNode jsonNode, String authorization) {
         String[] pathParts = path.split("/");
-
-        if (pathParts.length < 2) {
-            return createJsonResponse("404 Not Found", "The requested resource was not found");
+        //System.out.println(pathParts[2]); Username vom Pfad
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return createJsonResponse("401 Unauthorized", "");
+        }
+        String token = authorization.substring("Bearer ".length());
+        if (!token.endsWith("-mtcgToken")) {
+            return createJsonResponse("401 Unauthorized", "");
+        }
+        String username = token.substring(0, token.indexOf("-mtcgToken"));
+        //System.out.println(username); Username von der Authorization herausgefiltert
+        if (!username.equals(pathParts[2])) {
+            return createJsonResponse("401 Unauthorized", "");
         }
         switch (pathParts[1]) {
             case "users":
                 if (pathParts.length > 2) {
-                    String username = pathParts[2]; // Extrahiere den Benutzernamen aus dem Pfad
                     return handleEditUserData(jsonNode, username);
                 }
                 return createJsonResponse("404 Not Found", "Username is missing");
 
             case "deck":
-                return "HTTP/1.1 501 Method Not Implemented"; // Noch nicht implementiert
+                    return handleEditUserDeck(jsonNode, authorization);
 
             default:
                 return createJsonResponse("404 Not Found", "The requested resource was not found");
@@ -46,6 +54,31 @@ public class PutRequestHandler {
             return createJsonResponse("404 Not Found", "User not found");
         }
     }
+
+    // Methode zum Bearbeiten des Decks eines Benutzers
+    private String handleEditUserDeck(JsonNode jsonNode, String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return createJsonResponse("401 Unauthorized", "");
+        }
+        String token = authorization.substring("Bearer ".length());
+        if (!token.endsWith("-mtcgToken")) {
+            return createJsonResponse("401 Unauthorized", "");
+        }
+        String username = token.substring(0, token.indexOf("-mtcgToken"));
+        User user = userService.getUserFromDatabase(username);
+
+        if (user != null) {
+
+                if (userService.updateUserDeck(user, jsonNode)) {
+                    return createJsonResponse("204 No Content", "User Deck updated");
+            }
+                return createJsonResponse("400 Bad Request", "Must be 4 Cards or User is not owner of the card");
+            }
+            return createJsonResponse("404 Not Found", "User not found");
+    }
+
+
+
     public String createJsonResponse(String code, String message) {
         return "HTTP/1.1 " + code + "\nContent-Type: application/json\n\n" + "{ \"message\": \"" + message + "\" }";
     }

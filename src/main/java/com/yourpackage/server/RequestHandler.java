@@ -37,7 +37,7 @@ public class RequestHandler {
             //System.out.println("BODY: " + body);
             jsonNode = new ObjectMapper().readTree(body);
             authorization = getAuthorizationHeader(header);
-
+            //System.out.println(authorization);
         } catch (IOException e) {
             return "HTTP/1.1 400 Bad Request\n\nInvalid JSON format.";
         }
@@ -49,7 +49,7 @@ public class RequestHandler {
                 response = postRequestHandler.handlePostRequest(path, jsonNode, authorization); // Pass jsonNode
                 break;
             case "PUT":
-                response = putRequestHandler.handlePutRequest(path, jsonNode); // Pass jsonNode
+                response = putRequestHandler.handlePutRequest(path, jsonNode, authorization); // Pass jsonNode
                 break;
             case "DELETE":
                 response = "HTTP/1.1 501 Method Not Implemented";
