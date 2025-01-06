@@ -1,8 +1,10 @@
 package com.yourpackage.server;
 
 import com.yourpackage.models.Card;
+import com.yourpackage.models.Scoreboard;
 import com.yourpackage.models.User;
 import com.yourpackage.models.UserService;
+import com.yourpackage.models.Scoreboard;
 
 import java.util.List;
 
@@ -25,14 +27,18 @@ public class GetRequestHandler {
         }
         String username = token.substring(0, token.indexOf("-mtcgToken"));
         //System.out.println(username); //Username von der Authorization herausgefiltert
-        if (!username.equals(pathParts[2])) {
-            return createJsonResponse("401 Unauthorized", "");
+
+        if (pathParts.length < 2) {
+            if (!username.equals(pathParts[2])) {
+                return createJsonResponse("401 Unauthorized", "");
+            }
         }
         User user = userService.getUserFromDatabase(username);
         // Überprüfen, ob der Pfad die Struktur "/users/{username}" hat
         if (pathParts.length == 3 && "users".equals(pathParts[1])) {
             return getUserData(user); // Benutzerdaten abrufen
         }
+
         switch (path) {
             case "/cards":
                 return printCardStack(user);
@@ -43,12 +49,12 @@ public class GetRequestHandler {
             case "/deck?format=plain":
                 return printPlainCardDeck(user);
             case "/scoreboard":
-                return "HTTP/1.1 501 Method Not Implemented";
+                return printScoreboard();
 
             case "/stats":
-                return "HTTP/1.1 501 Method Not Implemented";
+                return printUserStats(user);
 
-            case "/traidings":
+            case "/tradings":
                 return "HTTP/1.1 501 Method Not Implemented";
 
             default:
@@ -115,6 +121,21 @@ public class GetRequestHandler {
         }
         return message;
     }
+
+    public String printUserStats(User user) {
+            String message = "";
+            message = user.getUsername() + "s current score: " + user.getScore();
+        return createJsonResponse("200 OK", message);
+    }
+
+    public String printScoreboard() {
+        Scoreboard scoreboard = new Scoreboard();
+        String message = "";
+        message = scoreboard.print();
+        return createJsonResponse("200 OK", message);
+    }
+
+
     public String cardToJson(List<Card> cards, String username) {
         StringBuilder jsonBuilder = new StringBuilder();
         jsonBuilder.append("{\r\n") // Neue Zeile für den Haupt-JSON-Block

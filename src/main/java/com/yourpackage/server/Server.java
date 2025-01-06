@@ -1,5 +1,7 @@
 package com.yourpackage.server;
 
+import com.yourpackage.models.Battle;
+import com.yourpackage.models.Scoreboard;
 import com.yourpackage.models.UserService;
 
 import java.io.*;
@@ -12,6 +14,8 @@ public class Server {
     private ServerSocket serverSocket;
     private UserService userService;
     private RequestHandler requestHandler;
+    private Scoreboard scoreboard;
+    private Battle battle;
     private ExecutorService threadPool;
 
     public Server(int port, int threadPoolSize) {
@@ -24,7 +28,9 @@ public class Server {
         }
 
         userService = new UserService();
-        requestHandler = new RequestHandler(userService);
+        scoreboard = new Scoreboard();
+        battle = new Battle();
+        requestHandler = new RequestHandler(userService, scoreboard, battle);
         threadPool = Executors.newFixedThreadPool(threadPoolSize);
     }
 

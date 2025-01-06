@@ -11,16 +11,20 @@ import java.net.Socket;
 public class RequestHandler {
 
     private final UserService userService;
+    private final Scoreboard scoreboard;
+    private final Battle battle;
     private final GetRequestHandler getRequestHandler;
     private final PostRequestHandler postRequestHandler;
     private final PutRequestHandler putRequestHandler;
     private final DeleteRequestHandler deleteRequestHandler;
 
 
-    public RequestHandler(UserService userService) {
+    public RequestHandler(UserService userService, Scoreboard scoreboard, Battle battle) {
         this.userService = new UserService();                       // Einmalige Instanzierung
+        this.scoreboard = scoreboard;
+        this.battle = battle;
         this.getRequestHandler = new GetRequestHandler(userService);
-        this.postRequestHandler = new PostRequestHandler(userService);
+        this.postRequestHandler = new PostRequestHandler(userService, battle);
         this.putRequestHandler = new PutRequestHandler(userService);
         this.deleteRequestHandler = new DeleteRequestHandler(userService);
     }

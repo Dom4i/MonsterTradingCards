@@ -19,7 +19,9 @@ import static org.junit.jupiter.api.Assertions.*;
 public class RequestHandlerTest {
 
     private UserService userService;
+    private Scoreboard scoreboard;
     private RequestHandler requestHandler;
+    private Battle battle;
     private GetRequestHandler getRequestHandler;
     private PostRequestHandler postRequestHandler;
     private PutRequestHandler putRequestHandler;
@@ -28,9 +30,9 @@ public class RequestHandlerTest {
     @BeforeEach
     public void setUp() throws IOException {
         userService = new UserService();
-        requestHandler = new RequestHandler(userService);
+        requestHandler = new RequestHandler(userService, scoreboard, battle);
         getRequestHandler = new GetRequestHandler(userService);
-        postRequestHandler = new PostRequestHandler(userService);
+        postRequestHandler = new PostRequestHandler(userService, battle);
         putRequestHandler = new PutRequestHandler(userService);
         deleteRequestHandler = new DeleteRequestHandler(userService);
 
@@ -168,7 +170,7 @@ public class RequestHandlerTest {
         // Jetzt aktualisiere die Benutzerdaten
         String jsonInputUpdate = "{\"Name\":\"Updated Name\",\"Bio\":\"Updated bio.\",\"Image\":\"updated_image_url.jpg\"}";
         BufferedReader inUpdate = new BufferedReader(new StringReader("PUT /users/testUser HTTP/1.1\r\nContent-Length: " + jsonInputUpdate.length() + "\r\n\r\n" + jsonInputUpdate));
-        String response = putRequestHandler.handlePutRequest("/users/testUser", new ObjectMapper().readTree(jsonInputUpdate)); // Übergebe das JsonNode
+        String response = putRequestHandler.handlePutRequest("/users/testUser", new ObjectMapper().readTree(jsonInputUpdate), "Bearer testUser-mtcgToken"); // Übergebe das JsonNode
 
         // Prüfe, ob die Antwort den gewünschten Status zurückgibt
         assertEquals(putRequestHandler.createJsonResponse("204 No Content", "User data updated"), response); // Erwartet, dass das Update erfolgreich ist

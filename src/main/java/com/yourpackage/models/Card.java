@@ -9,7 +9,7 @@ import java.util.UUID;
 public abstract class Card {
     private String id;
     private String name;
-    private final double damage;
+    private double damage;
     private String elementType;
     private String cardType;
 
@@ -63,6 +63,8 @@ public abstract class Card {
     public double getDamage() {
         return damage;
     }
+
+    public void setDamage(double damage) { this.damage = damage; }
 
     public String getElementType() {
         return elementType;

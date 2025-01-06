@@ -10,9 +10,10 @@ import java.util.UUID;
 
 public class PostRequestHandler {
     private final UserService userService;
-
-    public PostRequestHandler(UserService userService) {
+    private final Battle battle;
+    public PostRequestHandler(UserService userService, Battle battle) {
         this.userService = userService;
+        this.battle = new Battle();
     }
 
     public String handlePostRequest(String path, JsonNode jsonNode, String authorization) {
@@ -27,13 +28,15 @@ public class PostRequestHandler {
                 return handleCreatePackage(jsonNode, authorization);
             case "/transactions/packages":
                 return handleBuyPackage(authorization);
+            case "/battles":
+                return handleBattle(authorization);
             default:
                 return createJsonResponse("404 Not Found", "The requested resource was not found");
         }
     }
 
     // Methode zur Benutzerregistrierung
-    private  String handleUserCreation(JsonNode jsonNode) {
+    private String handleUserCreation(JsonNode jsonNode) {
         if (jsonNode.has("Username") && jsonNode.has("Password")) {
             String username = jsonNode.get("Username").asText();
             String password = jsonNode.get("Password").asText();
@@ -56,7 +59,7 @@ public class PostRequestHandler {
     }
 
     // Methode zum Benutzereinloggen
-    private  String handleUserLogin(JsonNode jsonNode) {
+    private String handleUserLogin(JsonNode jsonNode) {
         if (jsonNode.has("Username") && jsonNode.has("Password")) {
             String username = jsonNode.get("Username").asText();
             String password = jsonNode.get("Password").asText();
@@ -77,7 +80,7 @@ public class PostRequestHandler {
         }
     }
 
-    public  String handleCreatePackage(JsonNode jsonNode, String authorization) {
+    public String handleCreatePackage(JsonNode jsonNode, String authorization) {
         try {
             // Überprüfen, ob die Anfrage aus genau 5 Karten besteht
             if (!jsonNode.isArray() || jsonNode.size() != 5) {
@@ -161,6 +164,29 @@ public class PostRequestHandler {
         }
         return createJsonResponse("404 Not found", "No packages available");
     }
+
+    private String handleBattle(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return createJsonResponse("401 Unauthorized", "");
+        }
+        String token = authorization.substring("Bearer ".length());
+        if (!token.endsWith("-mtcgToken")) {
+            return createJsonResponse("401 Unauthorized", "");
+        }
+        String username = token.substring(0, token.indexOf("-mtcgToken"));
+        User user = userService.getUserFromDatabase(username);
+        String message = "";
+        battle.addPlayer(user);
+        if (battle.getPlayers() > 2)
+            return createJsonResponse("409 Conflict", "Two players already in battle");
+        else if(battle.getPlayers() < 2)
+            return createJsonResponse("200 OK", "Player joined battle");
+        else
+            battle.startBattle();
+
+        return createJsonResponse("201 OK", "");
+    }
+
 
     private String determineElementType(String cardName) {
         if (cardName.toLowerCase().contains("fire") || cardName.toLowerCase().contains("dragon")) {
