@@ -94,7 +94,7 @@ public class Battle {
         for (String logEntry : battleLog.getLogs()) {
             System.out.println(logEntry);
             try {
-                Thread.sleep(500);
+                Thread.sleep(1500);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -103,7 +103,7 @@ public class Battle {
         battleLog.clear();
     }
 
-    private String playRound() {
+    public String playRound() {
         User player1 = players.get(0);
         User player2 = players.get(1);
 
@@ -133,7 +133,7 @@ public class Battle {
         } else if (card1.getDamage() < card2.getDamage()) {
             return player2.getUsername();
         } else {
-            return "";
+            return "draw";
         }
     }
 
@@ -163,6 +163,7 @@ public class Battle {
         // Fülle das Deck des Verlierers wieder auf
         refillLoserDeck(loser);
         // Logge die Änderung
+        battleLog.addEntry("Three to zero! Thats extra score for " + winner.getUsername() + "!");
         battleLog.addEntry("Scores updated: " + winner.getUsername() + " gains 5 points, " + loser.getUsername() + " loses 5 points.");
     }
 
@@ -192,7 +193,7 @@ public class Battle {
     }
 
 
-    private Card getRandomCardFromDeck(User user) {
+    public Card getRandomCardFromDeck(User user) {
         List<Card> deck = user.getDeck();
         if (deck.isEmpty()) {
             battleLog.addEntry(user.getUsername() + " has no cards left!");
@@ -202,7 +203,7 @@ public class Battle {
         return deck.get(random.nextInt(deck.size()));
     }
 
-    private String checkFight(Card card1, Card card2) {
+    public String checkFight(Card card1, Card card2) {
         if (card1.getCardType().equals("MONSTER") && card2.getCardType().equals("MONSTER")) {
             return "monsterfight";
         }

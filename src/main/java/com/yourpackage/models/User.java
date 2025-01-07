@@ -55,9 +55,6 @@ public class User {
         this.cardStack.add(card);
     }
 
-    public void removeCardFromDeck(Card card) {
-        this.deck.remove(card);
-    }
 
     // Methode zum Hinzufügen einer Karte zum Deck
     public void addCardToDeck(Card card) {

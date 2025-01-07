@@ -124,7 +124,7 @@ public class GetRequestHandler {
 
     public String printUserStats(User user) {
             String message = "";
-            message = user.getUsername() + "s current score: " + user.getScore();
+            message = user.getUsername() + "s current score: " + user.getScore() + ". Current Cards: " + user.getCardStack().size();
         return createJsonResponse("200 OK", message);
     }
 

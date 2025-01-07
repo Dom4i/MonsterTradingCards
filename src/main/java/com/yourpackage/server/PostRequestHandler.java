@@ -184,7 +184,7 @@ public class PostRequestHandler {
         else
             battle.startBattle();
 
-        return createJsonResponse("201 OK", "");
+        return createJsonResponse("201 OK", "Fight is over!");
     }
 
 

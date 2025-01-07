@@ -19,7 +19,7 @@ public class Scoreboard {
                 String username = rs.getString("username");
                 int score = rs.getInt("score");
 
-                // Formatierte Ausgabe für die Tabelle
+                // Formatierte Ausgabe für die Tabelle (Rauskopiert)
                 scoreboard.append(String.format("%-4d | %-14s | %d\n", rank, username, score));
                 rank++;
             }
