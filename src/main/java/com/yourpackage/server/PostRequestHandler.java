@@ -30,6 +30,8 @@ public class PostRequestHandler {
                 return handleBuyPackage(authorization);
             case "/battles":
                 return handleBattle(authorization);
+            case "/tradings":
+                return createJsonResponse("501", "Method Not Implemented");
             default:
                 return createJsonResponse("404 Not Found", "The requested resource was not found");
         }

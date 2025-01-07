@@ -55,7 +55,7 @@ public class GetRequestHandler {
                 return printUserStats(user);
 
             case "/tradings":
-                return "HTTP/1.1 501 Method Not Implemented";
+                return createJsonResponse("501", "Method Not Implemented");
 
             default:
                 return createJsonResponse("404 Not Found", "Path not found"); // Für alle anderen Pfade
