@@ -1,8 +1,15 @@
 package com.yourpackage.models;
 
+import com.yourpackage.database.Database;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 
 public class Battle {
     private final List<User> players;
@@ -32,15 +39,12 @@ public class Battle {
             battleLog.addEntry(" - " + player.getUsername());
         }
 
-        // Siege der Spieler zählen
         int player1Wins = 0;
         int player2Wins = 0;
 
-        // Fünf Runden spielen
         for (int round = 1; round <= 5; round++) {
             battleLog.addEntry("\nRound " + round + " started!");
 
-            // Runde spielen und prüfen, wer gewonnen hat
             String roundWinner = playRound();
 
             if (roundWinner.equals(players.get(0).getUsername())) {
@@ -52,31 +56,30 @@ public class Battle {
             } else {
                 battleLog.addEntry("It's a draw! No winner this round.");
             }
-                battleLog.addEntry("Current Score: " + players.get(0).getUsername() + " " +  player1Wins + " | " + players.get(1).getUsername() + " " + player2Wins);
+            battleLog.addEntry("Current Score: " + players.get(0).getUsername() + " " + player1Wins + " | " + players.get(1).getUsername() + " " + player2Wins);
 
-            // Überprüfen, ob einer der Spieler bereits 3 Runden gewonnen hat
             if (player1Wins >= 3 || player2Wins >= 3) {
                 break;
             }
         }
 
-        // Überprüfen, wer insgesamt 3 oder mehr Runden gewonnen hat
         if (player1Wins >= 3) {
             battleLog.addEntry(players.get(0).getUsername() + " wins the battle!");
-            // Hier später die Karten und den Score aktualisieren
+            updateScores(players.get(0), players.get(1));
+            exchangeCards(players.get(0).getId(), players.get(1).getId());
         } else if (player2Wins >= 3) {
             battleLog.addEntry(players.get(1).getUsername() + " wins the battle!");
-            // Hier später die Karten und den Score aktualisieren
+            updateScores(players.get(1), players.get(0));
+            exchangeCards(players.get(1).getId(), players.get(0).getId());
         } else {
             battleLog.addEntry("It's a draw! No player wins the battle.");
         }
 
-        // Ausgabe des Battle Logs mit Verzögerung
         System.out.println("Battle Log: ");
         for (String logEntry : battleLog.getLogs()) {
             System.out.println(logEntry);
             try {
-                Thread.sleep(500); // Verzögerung von 1 Sekunde
+                Thread.sleep(500);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -105,20 +108,62 @@ public class Battle {
             if (checkNames(card2, card1, player2, player1).equals(player2.getUsername())) {
                 return player2.getUsername();
             }
-
         } else if (fight.equals("elementfight")) {
             card1.setDamage(checkElementals(card1, card2));
             card2.setDamage(checkElementals(card2, card1));
         }
 
         if (card1.getDamage() > card2.getDamage()) {
-            return player1.getUsername(); // Spieler 1 gewinnt
+            return player1.getUsername();
         } else if (card1.getDamage() < card2.getDamage()) {
-            return player2.getUsername(); // Spieler 2 gewinnt
+            return player2.getUsername();
         } else {
-            return ""; // Unentschieden
+            return "";
         }
     }
+
+    private void updateScores(User winner, User loser) {
+        // Update die Scores in den User-Objekten
+        winner.setScore(winner.getScore() + 3);
+        loser.setScore(loser.getScore() - 5);
+
+        // Schreibe die Änderungen in die Datenbank
+        updateScoreInDatabase(winner);
+        updateScoreInDatabase(loser);
+
+        // Fülle das Deck des Verlierers wieder auf
+        refillLoserDeck(loser);
+        // Logge die Änderung
+        battleLog.addEntry("Scores updated: " + winner.getUsername() + " gains 3 points, " + loser.getUsername() + " loses 5 points.");
+    }
+
+    public void exchangeCards(UUID winnerId, UUID loserId) {
+        try {
+            // 1. Karten des Verlierers aus dessen Deck holen (nur IDs)
+            List<String> loserCardIds = getCardIdsFromDeck(loserId);
+
+            if (loserCardIds.size() == 4) {  // Sicherstellen, dass nur 4 Karten abgerufen wurden
+                // 2. Karten in den Stack (user_cards) des Gewinners verschieben
+                addCardsToUserStack(winnerId, loserCardIds);
+
+                // 3. Karten aus dem Deck des Verlierers löschen
+                removeCardsFromDeck(loserId, loserCardIds);
+                removeCardsFromStack(loserId, loserCardIds);
+                // 4. Protokolliere im Battlelog, welche Karten übernommen wurden (nur IDs)
+                StringBuilder battleLogEntry = new StringBuilder(loserCardIds.size() + " cards transferred from " + loserId + " to " + winnerId + ": ");
+                battleLogEntry.append(String.join(", ", loserCardIds));
+                battleLog.addEntry(battleLogEntry.toString());  // Hinzufügen des Protokolleintrags
+            } else {
+                // Falls weniger oder mehr Karten als erwartet gefunden wurden
+                System.out.println("Error: Verlierer hat nicht genau 4 Karten im Deck.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace(); // Fehlerlogging
+        }
+    }
+
+
+
 
 
     private Card getRandomCardFromDeck(User user) {
@@ -197,4 +242,125 @@ public class Battle {
         battleLog.addEntry("No effects");
         return card1.getDamage();
     }
+
+    private void updateScoreInDatabase(User user) {
+        String query = "UPDATE users SET score = ? WHERE id = ?";
+
+        try (Connection conn = Database.getInstance().connect(); // Verbindung zur Datenbank
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, user.getScore()); // Neuer Score
+            stmt.setObject(2, user.getId()); // Benutzer-ID
+            stmt.executeUpdate(); // Ausführen der Update-Anweisung
+        } catch (SQLException e) {
+            e.printStackTrace(); // Fehler protokollieren
+            battleLog.addEntry("Error updating score for user " + user.getUsername() + ": " + e.getMessage());
+        }
+    }
+
+
+    private List<String> getCardIdsFromDeck(UUID userId) throws SQLException {
+        String query = "SELECT c.card_id FROM deck d " +
+                "JOIN cards c ON d.card_id = c.card_id " +
+                "WHERE d.user_id = ? " +
+                "LIMIT 4";  // Stelle sicher, dass nur 4 Karten abgerufen werden
+
+        List<String> cardIds = new ArrayList<>();
+
+        try (Connection conn = Database.getInstance().connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setObject(1, userId);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                cardIds.add(rs.getString("card_id")); // Hole die card_id
+            }
+        }
+        return cardIds;
+    }
+
+
+    public void addCardsToUserStack(UUID winnerId, List<String> cardIds) throws SQLException {
+        String query = "INSERT INTO user_cards (user_id, card_id) VALUES (?, ?)";
+
+        try (Connection conn = Database.getInstance().connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            for (String cardId : cardIds) {
+                stmt.setObject(1, winnerId);
+                stmt.setString(2, cardId);
+                stmt.addBatch(); // Batch für mehrere Karten
+            }
+            stmt.executeBatch();
+        }
+    }
+
+    public void removeCardsFromDeck(UUID loserId, List<String> cardIds) throws SQLException {
+        String query = "DELETE FROM deck WHERE user_id = ? AND card_id = ?";
+
+        try (Connection conn = Database.getInstance().connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            for (String cardId : cardIds) {
+                stmt.setObject(1, loserId);
+                stmt.setString(2, cardId);
+                stmt.addBatch(); // Batch für mehrere Karten
+            }
+            stmt.executeBatch();
+        }
+    }
+
+    public void removeCardsFromStack(UUID loserId, List<String> cardIds) throws SQLException {
+        String query = "DELETE FROM user_cards WHERE user_id = ? AND card_id = ?";
+
+        try (Connection conn = Database.getInstance().connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            for (String cardId : cardIds) {
+                stmt.setObject(1, loserId);
+                stmt.setString(2, cardId);
+                stmt.addBatch(); // Batch für mehrere Karten
+            }
+            stmt.executeBatch();
+        }
+    }
+
+    private void refillLoserDeck(User loser) {
+        String selectQuery = """
+        SELECT card_id
+        FROM user_cards
+        WHERE user_id = ?
+        AND card_id NOT IN (
+            SELECT card_id
+            FROM deck
+            WHERE user_id = ?
+        )
+        LIMIT 4
+    """;
+
+        String insertQuery = """
+        INSERT INTO deck (user_id, card_id)
+        VALUES (?, ?)
+    """;
+
+        try (Connection conn = Database.getInstance().connect();
+             PreparedStatement selectStmt = conn.prepareStatement(selectQuery);
+             PreparedStatement insertStmt = conn.prepareStatement(insertQuery)) {
+
+            // Karten aus dem Stack auswählen
+            selectStmt.setObject(1, loser.getId());
+            selectStmt.setObject(2, loser.getId());
+            ResultSet rs = selectStmt.executeQuery();
+
+            // Karten ins Deck einfügen
+            while (rs.next()) {
+                String cardId = rs.getString("card_id");
+                insertStmt.setObject(1, loser.getId());
+                insertStmt.setString(2, cardId);
+                insertStmt.executeUpdate();
+            }
+
+            battleLog.addEntry("Deck for user " + loser.getUsername() + " refilled with 4 cards.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            battleLog.addEntry("Error refilling deck for user " + loser.getUsername() + ": " + e.getMessage());
+        }
+    }
+
 }

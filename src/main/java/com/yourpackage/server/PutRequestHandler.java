@@ -13,7 +13,7 @@ public class PutRequestHandler {
 
     public String handlePutRequest(String path, JsonNode jsonNode, String authorization) {
         String[] pathParts = path.split("/");
-        //System.out.println(pathParts[2]); Username vom Pfad
+        //System.out.println(pathParts[2]); //Username vom Pfad
         if (authorization == null || !authorization.startsWith("Bearer ")) {
             return createJsonResponse("401 Unauthorized", "");
         }
@@ -22,10 +22,13 @@ public class PutRequestHandler {
             return createJsonResponse("401 Unauthorized", "");
         }
         String username = token.substring(0, token.indexOf("-mtcgToken"));
-        //System.out.println(username); Username von der Authorization herausgefiltert
-        if (!username.equals(pathParts[2])) {
-            return createJsonResponse("401 Unauthorized", "");
+        //System.out.println(username); //Username von der Authorization herausgefiltert
+        if (pathParts[1].equals("users")) {
+            if (!username.equals(pathParts[2])) {
+                return createJsonResponse("401 Unauthorized", "");
+            }
         }
+
         switch (pathParts[1]) {
             case "users":
                 if (pathParts.length > 2) {

@@ -116,7 +116,7 @@ public class GetRequestHandler {
 
     public String createPlainResponse(User user) {
         String message = "";
-        for (Card card : user.getCardStack()) {
+        for (Card card : user.getDeck()) {
             message +="ID: " + card.getId() + ", Name: " + card.getName() + "\n";
         }
         return message;

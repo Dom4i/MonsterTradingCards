@@ -185,12 +185,6 @@ public class UserService {
         return null; // Benutzer wurde nicht gefunden
     }
 
-
-
-
-
-
-
     public boolean buyPackageForUser(User user) {
         try (Connection conn = Database.getInstance().connect()) {
             // Überprüfen, ob der Benutzer existiert und genug Münzen hat
@@ -278,7 +272,6 @@ public class UserService {
         }
         return false; // Benutzer nicht gefunden oder kein Paket verfügbar
     }
-
 
 
     public void updateUserData(User user, JsonNode jsonNode) {

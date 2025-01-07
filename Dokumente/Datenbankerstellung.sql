@@ -26,8 +26,8 @@ CREATE TABLE users (
 -- Erstelle die packages-Tabelle
 CREATE TABLE packages (
                           package_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-                          is_available BOOLEAN DEFAULT TRUE
-                          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+                          is_available BOOLEAN DEFAULT TRUE,
+                          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Erstelle die user_packages-Tabelle
