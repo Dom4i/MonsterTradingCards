@@ -41,6 +41,7 @@ public class Battle {
 
         int player1Wins = 0;
         int player2Wins = 0;
+        boolean threetozero = false;
 
         for (int round = 1; round <= 5; round++) {
             battleLog.addEntry("\nRound " + round + " started!");
@@ -64,12 +65,26 @@ public class Battle {
         }
 
         if (player1Wins >= 3) {
+            if (player2Wins == 0) {
+                threetozero = true; //Unique Feature
+            }
             battleLog.addEntry(players.get(0).getUsername() + " wins the battle!");
-            updateScores(players.get(0), players.get(1));
+            if (threetozero) {
+                updateScoresThreeToZero(players.get(0), players.get(1));
+            } else {
+                updateScores(players.get(0), players.get(1));
+            }
             exchangeCards(players.get(0).getId(), players.get(1).getId());
         } else if (player2Wins >= 3) {
+            if (player1Wins == 0) {
+                threetozero = true; //Unique Feature
+            }
             battleLog.addEntry(players.get(1).getUsername() + " wins the battle!");
-            updateScores(players.get(1), players.get(0));
+            if (threetozero) {
+                updateScoresThreeToZero(players.get(1), players.get(0));
+            } else {
+                updateScores(players.get(1), players.get(0));
+            }
             exchangeCards(players.get(1).getId(), players.get(0).getId());
         } else {
             battleLog.addEntry("It's a draw! No player wins the battle.");
@@ -136,6 +151,20 @@ public class Battle {
         // Logge die Änderung
         battleLog.addEntry("Scores updated: " + winner.getUsername() + " gains 3 points, " + loser.getUsername() + " loses 5 points.");
     }
+    private void updateScoresThreeToZero(User winner, User loser) {
+        // Update die Scores in den User-Objekten
+        winner.setScore(winner.getScore() + 5);
+        loser.setScore(loser.getScore() - 5);
+
+        // Schreibe die Änderungen in die Datenbank
+        updateScoreInDatabase(winner);
+        updateScoreInDatabase(loser);
+
+        // Fülle das Deck des Verlierers wieder auf
+        refillLoserDeck(loser);
+        // Logge die Änderung
+        battleLog.addEntry("Scores updated: " + winner.getUsername() + " gains 5 points, " + loser.getUsername() + " loses 5 points.");
+    }
 
     public void exchangeCards(UUID winnerId, UUID loserId) {
         try {
@@ -163,9 +192,6 @@ public class Battle {
     }
 
 
-
-
-
     private Card getRandomCardFromDeck(User user) {
         List<Card> deck = user.getDeck();
         if (deck.isEmpty()) {
@@ -189,7 +215,10 @@ public class Battle {
         if ((card1.getName().equals("FireElf") && card2.getName().equals("Dragon")) || card1.getName().equals("Dragon") && card2.getName().equals("FireElf")) {
             return "specialfight";
         }
-
+        //Unique specialfight
+        if ((card1.getName().equals("WaterGoblin") && card2.getName().equals("WaterSpell")) || card1.getName().equals("WaterSpell") && card2.getName().equals("WaterGoblin")) {
+            return "specialfight";
+        }
         else {
             return "elementfight";
         }
@@ -208,6 +237,12 @@ public class Battle {
         }
         if (card1.getName().equals("FireElf") && card2.getName().equals("Dragon")) {
             battleLog.addEntry("The FireElves know Dragons since they were little and can evade their attacks.");
+            battleLog.addEntry("Player " + player1.getUsername() + " with card " + card1.getName() + " won!");
+            return player1.getUsername();
+        }
+        //Unique Feature
+        if (card1.getName().equals("WaterGoblin") && card2.getName().equals("WaterSpell")) {
+            battleLog.addEntry("The WaterGoblin can glide over the Water and evades the WaterSpell");
             battleLog.addEntry("Player " + player1.getUsername() + " with card " + card1.getName() + " won!");
             return player1.getUsername();
         } else
